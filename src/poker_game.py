@@ -55,6 +55,7 @@ class TreysPokerEnv:
         self.done = False
         self.winner = None
         self.last_action = None
+        self.opponent_last_action = None
         self.hand_history = []
         
         return self._get_state()
@@ -267,6 +268,7 @@ class TreysPokerEnv:
         # Action de l'adversaire (si le joueur n'a pas fold)
         if not self.done:
             opp_action = self._opponent_action()
+            self.opponent_last_action = opp_action  # Stocker l'action adverse pour l'affichage
             
             if opp_action == PokerAction.FOLD:
                 self.done = True

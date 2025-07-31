@@ -6,22 +6,21 @@ from treys import Card as TreysCard
 from typing import List
 from poker_game import PokerAction, TreysPokerEnv
 
-# Initialisation de colorama pour les couleurs dans la console
-init(autoreset=True)
+init(autoreset=True) # reset de la couleur après chaque print
 
 
 class PokerConsole:
-    """Classe pour l'affichage console amélioré du jeu de poker"""
+    """console pour afficher le jeu"""
     
     def clear_screen() -> None:
         """Efface l'écran de la console"""
         os.system('cls' if os.name == 'nt' else 'clear')
     
     def print_header(title: str) -> None:
-        """Affiche un en-tête stylisé"""
+        """entete trop stylé"""
         print(f"\n{Fore.CYAN}{'=' * 80}")
         print(f"{Fore.YELLOW}{title.center(80)}")
-        print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{'=' * 80}")
     
     def print_cards(cards: List[int], label: str = "Cartes") -> None:
         """Affiche les cartes avec des couleurs appropriées"""
@@ -38,13 +37,12 @@ class PokerConsole:
     
     def print_game_state(env: TreysPokerEnv) -> None:
         """Affiche l'état actuel de la partie"""
-        print(f"\n{Fore.MAGENTA}┌─ ÉTAT DE LA PARTIE ──────────────────────────────────┐")
-        print(f"│ Pot: {Fore.YELLOW}{env.pot:>6}{Style.RESET_ALL} chips\t│\tRound: {Fore.CYAN}{env.get_betting_round_name():<12}{Style.RESET_ALL}\t│")
-        print(f"│ Mes jetons: {Fore.GREEN}{env.player_chips:>6}{Style.RESET_ALL}\t│\tJetons Adv: {Fore.RED}{env.opponent_chips:>6}{Style.RESET_ALL}\t│")
-        print(f"│ Ma mise: {Fore.BLUE}{env.player_bet:>6}{Style.RESET_ALL}\t│\tMise Adv: {Fore.BLUE}{env.opponent_bet:>6}{Style.RESET_ALL}\t│")
-        print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────┘{Style.RESET_ALL}")
+        print(f"\n{Fore.MAGENTA}┌─ ÉTAT DE LA PARTIE ───────────────────────────────────────────────────┐")
+        print(f"│ Pot: {Fore.YELLOW}{env.pot:>6}{Style.RESET_ALL} jetons\t\t│\tRound: {Fore.CYAN}{env.get_betting_round_name():<12}{Style.RESET_ALL}\t\t│")
+        print(f"│ IA jetons: {Fore.GREEN}{env.player_chips:>6}{Style.RESET_ALL} jetons\t│\tJetons Adv: {Fore.RED}{env.opponent_chips:>6}{Style.RESET_ALL} jetons\t│")
+        print(f"│ IA mise: {Fore.BLUE}{env.player_bet:>6}{Style.RESET_ALL} jetons\t│\tMise Adv: {Fore.BLUE}{env.opponent_bet:>6}{Style.RESET_ALL} jetons\t\t│")
+        print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
     
-    @staticmethod
     def print_action(player: str, action: PokerAction, amount: int = 0) -> None:
         """Affiche l'action d'un joueur avec des couleurs"""
         action_colors = {
@@ -61,13 +59,11 @@ class PokerConsole:
         else:
             print(f"{Fore.WHITE}{player}: {color}{action.name if hasattr(action, 'name') else action}{Style.RESET_ALL}")
     
-    @staticmethod
     def print_hand_strength(strength: float, rank_class: str) -> None:
         """Affiche la force de la main avec des couleurs"""
         strength_color = Fore.GREEN if strength > 4000 else Fore.YELLOW if strength > 2000 else Fore.RED
         print(f"Force de la main: {strength_color}{strength}{Style.RESET_ALL} ({rank_class})")
     
-    @staticmethod
     def print_training_progress(episode: int, total_reward: float, epsilon: float, 
                               win_rate: float, avg_reward: float, avg_loss: float) -> None:
         """Affiche le progrès de l'entraînement"""
@@ -81,7 +77,6 @@ class PokerConsole:
               f"R.moy: {reward_color}{avg_reward:6.1f}{Style.RESET_ALL} | "
               f"Loss: {Fore.MAGENTA}{avg_loss:.4f}{Style.RESET_ALL}")
     
-    @staticmethod
     def print_final_results(episodes: int, final_win_rate: float, 
                           final_avg_reward: float, final_avg_loss: float, 
                           memory_size: int) -> None:
@@ -97,7 +92,6 @@ class PokerConsole:
         print(f"   Loss moyenne finale: {Fore.MAGENTA}{final_avg_loss:.4f}{Style.RESET_ALL}")
         print(f"   Memoire de replay: {Fore.RED}{memory_size}{Style.RESET_ALL} transitions")
     
-    @staticmethod
     def print_test_results(test_wins: int, total_tests: int, test_rewards: List[float]) -> None:
         """Affiche les résultats des tests"""
         test_win_rate = test_wins / total_tests * 100
@@ -116,13 +110,12 @@ class PokerConsole:
         else:
             print(f"\n{Fore.RED}L'agent a encore du mal. Peut-etre faut-il plus d'entrainement?{Style.RESET_ALL}")
     
-    @staticmethod
     def render_game(env: TreysPokerEnv, show_opponent_cards: bool = False) -> None:
         """Affiche l'état complet du jeu"""
         PokerConsole.print_header(f"POKER DQN - {env.get_betting_round_name()}")
         
         # Cartes du joueur
-        PokerConsole.print_cards(env.player_cards, "🤖 Vos cartes")
+        PokerConsole.print_cards(env.player_cards, "🤖 Agent IA main")
         
         # Force de la main du joueur
         player_strength, player_class = env.get_player_hand_info()
@@ -141,21 +134,21 @@ class PokerConsole:
         # État du jeu
         PokerConsole.print_game_state(env)
         
-        # Dernière action
+        # Dernière action du joueur
         if env.last_action:
-            PokerConsole.print_action("🤖 Vous", env.last_action)
+            PokerConsole.print_action("🤖 Agent IA move", env.last_action)
+        
+        # Dernière action de l'adversaire 
+        if hasattr(env, 'opponent_last_action') and env.opponent_last_action:
+            PokerConsole.print_action("🎲 Adversaire move", env.opponent_last_action)
         
         # Résultat final
         if env.done:
             if env.winner == "player":
-                print(f"\n{Fore.GREEN}🎉 VICTOIRE! Vous gagnez {env.pot - env.player_bet} chips!{Style.RESET_ALL}")
+                print(f"\n{Fore.GREEN}🎉 VICTOIRE! Agent IA gagne {env.pot - env.player_bet} jetons!{Style.RESET_ALL}")
             elif env.winner == "opponent":
-                print(f"\n{Fore.RED}💀 DÉFAITE! Vous perdez {env.player_bet} chips.{Style.RESET_ALL}")
+                print(f"\n{Fore.RED}💀 DÉFAITE! Agent IA perd {env.player_bet} jetons.{Style.RESET_ALL}")
             else:
                 print(f"\n{Fore.YELLOW}🤝 ÉGALITÉ! Personne ne gagne.{Style.RESET_ALL}")
-            
-            if show_opponent_cards:
-                print(f"\n{Fore.CYAN}=== SHOWDOWN ==={Style.RESET_ALL}")
-                PokerConsole.print_cards(env.opponent_cards, "🎲 Cartes adversaire révélées")
-        
+                        
         print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")

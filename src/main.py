@@ -1,25 +1,21 @@
-"""
-Script principal pour l'entrainement et le test de l'agent DQN au poker Texas Hold'em.
-"""
+# lancer ce fichier
 
 import os
-# Configuration TensorFlow AVANT l'import - tres important!
 from config import config
 
 # Configuration TensorFlow avec les paramètres du config
-os.environ["OMP_NUM_THREADS"] = str(config.TENSORFLOW_THREADS)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # Reduit les logs TensorFlow
+# os.environ["OMP_NUM_THREADS"] = str(config.TENSORFLOW_THREADS)
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # Reduit les logs TensorFlow
 
 import tensorflow as tf
-# utiliser tous les threads disponibles
-tf.config.threading.set_intra_op_parallelism_threads(config.TENSORFLOW_THREADS)
-tf.config.threading.set_inter_op_parallelism_threads(config.TENSORFLOW_THREADS)
+# utiliser tous les threads disponibles (n'a pas l'air de marcher)
+# tf.config.threading.set_intra_op_parallelism_threads(config.TENSORFLOW_THREADS)
+# tf.config.threading.set_inter_op_parallelism_threads(config.TENSORFLOW_THREADS)
 
 import numpy as np
 import time
 from colorama import Fore, Style
 
-# Imports des modules locaux
 from poker_game import TreysPokerEnv, PokerAction
 from console_display import PokerConsole
 from dqn_agent import DQNAgent
@@ -61,13 +57,8 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
             
             next_state, reward, done, info = env.step(action)
             
-            # Affichage de l'action si demonstration
+            # Affichage de l'etat apres l'action si demonstration
             if show_this_game:
-                action_enum = PokerAction(action)
-                PokerConsole.print_action("Agent IA", action_enum)
-                time.sleep(0.8)
-                
-                # Affichage de l'etat apres l'action
                 PokerConsole.render_game(env, show_opponent_cards)
                 if not done:
                     time.sleep(1)
