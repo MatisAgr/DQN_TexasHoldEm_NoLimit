@@ -105,11 +105,11 @@ class PokerConsole:
         
         # Message final basé sur les performances
         if test_win_rate > 60:
-            print(f"\n{Fore.GREEN}Excellent! Votre agent DQN performe tres bien au poker!{Style.RESET_ALL}")
+            print(f"\n{Fore.GREEN}Nickel l'agent performe bien{Style.RESET_ALL}")
         elif test_win_rate > 40:
-            print(f"\n{Fore.YELLOW}Bon travail! Votre agent DQN a des performances correctes.{Style.RESET_ALL}")
+            print(f"\n{Fore.YELLOW}Ok tier sur la performance{Style.RESET_ALL}")
         else:
-            print(f"\n{Fore.RED}L'agent a encore du mal. Peut-etre faut-il plus d'entrainement?{Style.RESET_ALL}")
+            print(f"\n{Fore.RED}Bof la performance là{Style.RESET_ALL}")
     
     def render_game(env: TreysPokerEnv, show_opponent_cards: bool = False) -> None:
         """Affiche l'état complet du jeu"""
@@ -146,11 +146,11 @@ class PokerConsole:
         # Résultat final
         if env.done:
             if env.winner == "player":
-                print(f"\n{Fore.GREEN}🎉 VICTOIRE! Agent IA gagne {env.pot - env.player_bet} jetons!{Style.RESET_ALL}")
+                print(f"\n{Fore.GREEN}Agent IA gagne {env.pot - env.player_bet} jetons {Style.RESET_ALL}")
             elif env.winner == "opponent":
-                print(f"\n{Fore.RED}💀 DÉFAITE! Agent IA perd {env.player_bet} jetons.{Style.RESET_ALL}")
+                print(f"\n{Fore.RED}Agent IA perd {env.player_bet} jetons {Style.RESET_ALL}")
             else:
-                print(f"\n{Fore.YELLOW}🤝 ÉGALITÉ! Personne ne gagne.{Style.RESET_ALL}")
+                print(f"\n{Fore.YELLOW}Personne ne gagne {Style.RESET_ALL}")
                         
         print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
     
@@ -190,11 +190,11 @@ class PokerConsole:
         # Résultat final
         if env.done:
             if env.winner == "agent1":
-                print(f"\n{Fore.GREEN}🎉 VICTOIRE {config.TRAINING.AGENT_NAMES[0]}! Gagne {env.pot - env.agent1_bet} jetons!{Style.RESET_ALL}")
+                print(f"\n{Fore.GREEN} Victoire {config.TRAINING.AGENT_NAMES[0]} gagne {env.pot - env.agent1_bet} jetons {Style.RESET_ALL}")
             elif env.winner == "agent2":
-                print(f"\n{Fore.GREEN}🎉 VICTOIRE {config.TRAINING.AGENT_NAMES[1]}! Gagne {env.pot - env.agent2_bet} jetons!{Style.RESET_ALL}")
+                print(f"\n{Fore.GREEN} Victoire {config.TRAINING.AGENT_NAMES[1]} gagne {env.pot - env.agent2_bet} jetons {Style.RESET_ALL}")
             else:
-                print(f"\n{Fore.YELLOW}🤝 ÉGALITÉ! Personne ne gagne.{Style.RESET_ALL}")
+                print(f"\n{Fore.YELLOW}Personne ne gagne{Style.RESET_ALL}")
                         
         print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
     

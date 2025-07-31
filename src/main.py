@@ -25,25 +25,27 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
                 show_game_every: int = config.TRAINING.SHOW_GAME_EVERY, show_opponent_cards: bool = config.TRAINING.SHOW_OPPONENT_CARDS,
                 train_frequency: int = config.TRAINING.TRAIN_FREQUENCY, target_update_frequency: int = config.TRAINING.TARGET_UPDATE_FREQUENCY) -> None:
     
+    # on garde trace des metriques d'entrainement
     reward_history = []
     win_history = []
     loss_history = []
     step_count = 0
     
-    # Affichage initial
+    # affichage initial pour suivre le progres
     PokerConsole.clear_screen()
     PokerConsole.print_header("ENTRAINEMENT DQN POKER AVEC TREYS")
     print(f"{Fore.YELLOW}Entrainement de l'agent DQN pour {episodes} episodes...{Style.RESET_ALL}")
 
     
     for episode in range(episodes):
+        # reset de l'environnement pour un nouvel episode
         state = env.reset()
         total_reward = 0
         steps_in_episode = 0
         episode_loss = 0
         episode_q_values = []
         
-        # Affichage de la partie si c'est le bon intervalle
+        # on affiche certaines parties pour voir comment ca se passe
         show_this_game = (episode % show_game_every == 0 and episode > 0)
         
         if show_this_game:
@@ -53,10 +55,10 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
             time.sleep(1)
         
         while True:
-            # Action du joueur avec epsilon-greedy
+            # l'agent choisit une action basee sur l'etat actuel
             action = agent.act(state, training=True)
             
-            # Enregistrer les Q-values pour les statistiques
+            # on garde les q-values pour les stats
             q_values = agent.get_q_values(state)
             episode_q_values.append(np.max(q_values))
             
