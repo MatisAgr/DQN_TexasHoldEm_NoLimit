@@ -2,36 +2,35 @@
 
 # ========================= PARAMÈTRES DQN =========================
 
+# config agent DQN
 class DQNConfig:
-    """config agent DQN"""
     
-    # Paramètres d'apprentissage
-    LEARNING_RATE = 0.001
-    EPSILON_START = 1.0
-    EPSILON_MIN = 0.05
-    EPSILON_DECAY = 0.9995
-    GAMMA = 0.95  # Facteur de discount
+    # apprentissage
+    LEARNING_RATE = 0.001   # taux d'apprentissage
+    EPSILON_START = 1.0     # epsilon initial pour l'exploration
+    EPSILON_MIN = 0.05      # epsilon minimum pour l'exploration
+    EPSILON_DECAY = 0.9995  # taux de décroissance de l'exploration
+    GAMMA = 0.95            # facteur de d'importance des récompenses futures (long terme)
     
-    # Mémoire de replay
+    # mémoire
     MEMORY_SIZE = 100000
     BATCH_SIZE = 32
     
-    # Architecture du réseau
+    # réseau de neurones
     HIDDEN_LAYERS = [128, 128, 64, 32]
     DROPOUT_RATE = 0.3
 
-
-class TrainingConfig:
-    """env training"""
+# env training
+class TrainingConfig: 
     
     # Nombre d'épisodes et fréquences
     EPISODES = 10000
-    TRAIN_FREQUENCY = 4
-    TARGET_UPDATE_FREQUENCY = 50    # Mettre à jour le modèle cible tous les N épisodes
+    TRAIN_FREQUENCY = 4 
+    TARGET_UPDATE_FREQUENCY = 50    # 
     
     # Affichage et sauvegarde
-    SHOW_GAME_EVERY = 10            # Afficher une partie tous les N épisodes (réduit pour test)
-    SAVE_EVERY = 500                # Sauvegarder tous les N épisodes
+    SHOW_GAME_EVERY = 2000            # Afficher une partie tous les N épisodes (réduit pour test)
+    SAVE_EVERY = 2000                # Sauvegarder tous les N épisodes
     PROGRESS_EVERY = 100            # Afficher les statistiques tous les N épisodes
     
     # Options d'affichage
@@ -39,9 +38,9 @@ class TrainingConfig:
     
     # TODO: Mode IA vs IA (pas prêt)
     # MULTI_AGENT_MODE = False         # faire du IA vs IA ou IA vs bot
-    # AGENT_NAMES = ["IA-1", "IA-2"]  # Noms des deux agents
-    # ALTERNATE_TRAINING = True       # Alterner l'entraînement des deux agents
-    # SHARED_EXPERIENCE = False     # partager la mémoire de replay entre agents (à voir plus tard)
+    # AGENT_NAMES = ["IA-1", "IA-2"]  # nom des deux agents
+    # ALTERNATE_TRAINING = True       # alterner l'entraînement des deux agents
+    # SHARED_EXPERIENCE = False     # partager la mémoire de replay entre agents (truc de fou mais je vais oublier l'idée )
 
 
 class PokerConfig:

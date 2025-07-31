@@ -176,12 +176,12 @@
 #         state = [
 #             normalized_strength,                                         # Force de la main normalisée
 #             self.pot / max_chips,                                        # Taille du pot
-#             my_chips / max_chips,                                        # Mes jetons
-#             opp_chips / max_chips,                                       # Jetons adversaire
+#             my_chips / max_chips,                                        # Jetons de l'agent1
+#             opp_chips / max_chips,                                       # Jetons de l'agent2
 #             self.betting_round / 3.0,                                    # Round de mise
 #             len(self.community_cards) / 5.0,                             # Nombre de cartes communes
-#             my_bet / max_bet,                                            # Ma mise actuelle
-#             opp_bet / max_bet,                                           # Mise adversaire
+#             my_bet / max_bet,                                            # Agent1 mise actuelle
+#             opp_bet / max_bet,                                           # Agent2 mise actuelle
 #             card1_rank,                                                  # Rang carte 1
 #             card2_rank,                                                  # Rang carte 2
 #             is_suited,                                                   # Suited?
