@@ -164,11 +164,11 @@ def main():
     print(f"{Fore.YELLOW}DQN")
     print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
     
-    # Choix du mode d'entraînement
-    if config.TRAINING.MULTI_AGENT_MODE:
-        from multi_agent_training import main_multi_agent
-        main_multi_agent()
-        return
+    # TODO: choix du mode d'entraînement
+    # if config.TRAINING.MULTI_AGENT_MODE:
+    #     from multi_agent_training import main_multi_agent
+    #     main_multi_agent()
+    #     return
         
     # Utilisation des paramètres de configuration
     np.random.seed(config.RANDOM_SEED)

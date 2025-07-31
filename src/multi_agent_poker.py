@@ -193,7 +193,7 @@
         
 #         return np.array(state, dtype=np.float32)
     
-#     def _deal_community_cards(self) -> None:
+#     def deal_community_cards(self) -> None:
 #         """Distribue les cartes communes selon le round"""
 #         if self.betting_round == 1 and len(self.community_cards) == 0:  # Flop
 #             self.community_cards.extend([self.deck.draw(1)[0] for _ in range(3)])
@@ -306,7 +306,7 @@
 #         # Vérifier si on passe au round suivant ou showdown (seulement si la partie n'est pas terminée)
 #         if not self.done and self.agent1_bet == self.agent2_bet:
 #             self.betting_round += 1
-#             self._deal_community_cards()
+#             self.deal_community_cards()
             
 #             if self.betting_round > 3:  # Showdown
 #                 self.done = True

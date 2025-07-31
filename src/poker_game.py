@@ -58,26 +58,26 @@ class TreysPokerEnv:
         self.opponent_last_action = None
         self.hand_history = []
         
-        return self._get_state()
+        return self.get_state()
     
     def get_betting_round_name(self) -> str:
         """Retourne le nom du round de mise actuel"""
         rounds = ["Pre-flop", "Flop", "Turn", "River", "Showdown"]
         return rounds[min(self.betting_round, 4)]
     
-    def _get_hand_strength(self, hole_cards: List[int], community_cards: Optional[List[int]] = None) -> float:
+    def get_hand_strength(self, hole_cards: List[int], community_cards: Optional[List[int]] = None) -> float:
         """la lib trey calcul la force de la main et donne un score"""
         if community_cards is None:
             community_cards = self.community_cards
         
         if len(community_cards) < 3:
             # Pre-flop ou pas assez de cartes communes : évaluation simplifiée
-            return self._get_preflop_strength(hole_cards)
+            return self.get_preflop_strength(hole_cards)
         
         all_cards = hole_cards + community_cards
         if len(all_cards) < 5:
             # Pas assez de cartes pour une évaluation complète
-            return self._get_preflop_strength(hole_cards) * 1000
+            return self.get_preflop_strength(hole_cards) * 1000
         
         # Évaluation avec treys (plus le score est bas, meilleure est la main)
         hand_rank = self.evaluator.evaluate(all_cards[:5], all_cards[5:7] if len(all_cards) == 7 else [])
@@ -87,7 +87,7 @@ class TreysPokerEnv:
         normalized_strength = 7463 - hand_rank
         return normalized_strength
     
-    def _get_hand_class(self, hole_cards: List[int], community_cards: Optional[List[int]] = None) -> str:
+    def get_hand_class(self, hole_cards: List[int], community_cards: Optional[List[int]] = None) -> str:
         """Retourne la classe de la main (paire, brelan, etc.)"""
         if community_cards is None:
             community_cards = self.community_cards
@@ -102,7 +102,7 @@ class TreysPokerEnv:
         hand_rank = self.evaluator.evaluate(all_cards[:5], all_cards[5:7] if len(all_cards) == 7 else [])
         return self.evaluator.class_to_string(self.evaluator.get_rank_class(hand_rank))
     
-    def _get_preflop_strength(self, cards: List[int]) -> float:
+    def get_preflop_strength(self, cards: List[int]) -> float:
         """Évalue la force pré-flop des cartes privées avec treys"""
         if len(cards) != 2:
             return 0
@@ -144,10 +144,10 @@ class TreysPokerEnv:
             else:
                 return 0.2
     
-    def _get_state(self) -> np.ndarray:
+    def get_state(self) -> np.ndarray:
         """Retourne l'état actuel sous forme de vecteur optimisé"""
         # Force de la main
-        hand_strength = self._get_hand_strength(self.player_cards)
+        hand_strength = self.get_hand_strength(self.player_cards)
         normalized_strength = hand_strength / 7463.0 if hand_strength > 1 else hand_strength
         
         # Informations sur les cartes privées
@@ -180,7 +180,7 @@ class TreysPokerEnv:
         
         return np.array(state, dtype=np.float32)
     
-    def _deal_community_cards(self) -> None:
+    def deal_community_cards(self) -> None:
         """Distribue les cartes communes selon le round"""
         if self.betting_round == 1 and len(self.community_cards) == 0:  # Flop
             self.community_cards.extend(self.deck.draw(3))
@@ -189,10 +189,10 @@ class TreysPokerEnv:
         elif self.betting_round == 3 and len(self.community_cards) == 4:  # River
             self.community_cards.extend(self.deck.draw(1))
     
-    def _opponent_action(self) -> PokerAction:
+    def opponent_action(self) -> PokerAction:
         """Stratégie adversaire améliorée avec treys"""
-        opp_strength = self._get_hand_strength(self.opponent_cards)
-        preflop_strength = self._get_preflop_strength(self.opponent_cards)
+        opp_strength = self.get_hand_strength(self.opponent_cards)
+        preflop_strength = self.get_preflop_strength(self.opponent_cards)
         
         # Normalisation de la force
         if len(self.community_cards) >= 3:
@@ -226,7 +226,7 @@ class TreysPokerEnv:
     def step(self, action_idx: int) -> Tuple[np.ndarray, float, bool, Dict]:
         """Exécute une action et retourne le nouvel état"""
         if self.done:
-            return self._get_state(), 0, True, {}
+            return self.get_state(), 0, True, {}
         
         action = PokerAction(action_idx)
         reward = 0
@@ -267,7 +267,7 @@ class TreysPokerEnv:
         
         # Action de l'adversaire (si le joueur n'a pas fold)
         if not self.done:
-            opp_action = self._opponent_action()
+            opp_action = self.opponent_action()
             self.opponent_last_action = opp_action  # Stocker l'action adverse pour l'affichage
             
             if opp_action == PokerAction.FOLD:
@@ -299,12 +299,12 @@ class TreysPokerEnv:
             # Progression vers le prochain round
             if not self.done and self.player_bet == self.opponent_bet:
                 self.betting_round += 1
-                self._deal_community_cards()
+                self.deal_community_cards()
                 
                 if self.betting_round > 3:  # Showdown
                     self.done = True
-                    player_strength = self._get_hand_strength(self.player_cards)
-                    opponent_strength = self._get_hand_strength(self.opponent_cards)
+                    player_strength = self.get_hand_strength(self.player_cards)
+                    opponent_strength = self.get_hand_strength(self.opponent_cards)
                     
                     if player_strength > opponent_strength:
                         reward = self.pot - self.player_bet
@@ -316,16 +316,16 @@ class TreysPokerEnv:
                         reward = 0
                         self.winner = "tie"
         
-        return self._get_state(), reward, self.done, {"winner": self.winner}
+        return self.get_state(), reward, self.done, {"winner": self.winner}
     
     def get_player_hand_info(self) -> Tuple[float, str]:
         """Retourne les informations sur la main du joueur"""
-        strength = self._get_hand_strength(self.player_cards)
-        hand_class = self._get_hand_class(self.player_cards)
+        strength = self.get_hand_strength(self.player_cards)
+        hand_class = self.get_hand_class(self.player_cards)
         return strength, hand_class
     
     def get_opponent_hand_info(self) -> Tuple[float, str]:
         """Retourne les informations sur la main de l'adversaire"""
-        strength = self._get_hand_strength(self.opponent_cards)
-        hand_class = self._get_hand_class(self.opponent_cards)
+        strength = self.get_hand_strength(self.opponent_cards)
+        hand_class = self.get_hand_class(self.opponent_cards)
         return strength, hand_class
