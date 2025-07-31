@@ -1,0 +1,4 @@
+rlcard
+tensorflow
+numpy
+matplotlib
