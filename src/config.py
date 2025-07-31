@@ -85,7 +85,7 @@ class Config:
     POKER = PokerConfig()
     PATHS = PathConfig()
     
-    # Configuration système
+    # specifique à votre pc
     # TENSORFLOW_THREADS = 14   #n'a pas l'air de marcher
     RANDOM_SEED = 42            # le sens de la vie
 
