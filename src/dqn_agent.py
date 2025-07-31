@@ -51,12 +51,12 @@ class DQNAgent:
         self.tensorboard_log_dir = os.path.join(config.PATHS.TENSORBOARD_LOG_DIR, f"dqn_training_{timestamp}")
         self.tensorboard_writer = tf.summary.create_file_writer(self.tensorboard_log_dir)
         
-        # copie des poids du modèle car jamais le même lors de la création
-        self.q_model = self.create_model()
-        self.target_model = self.create_model()
+        # copie des poids
+        self.q_model = self._create_model()
+        self.target_model = self._create_model()
         self.target_model.set_weights(self.q_model.get_weights())
     
-    def create_model(self) -> tf.keras.Model:
+    def _create_model(self) -> tf.keras.Model:
         """Crée le modèle Q-Network pour le poker"""
         model = tf.keras.Sequential()
         
