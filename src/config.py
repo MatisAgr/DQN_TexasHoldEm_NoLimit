@@ -3,7 +3,7 @@
 # ========================= PARAMÈTRES DQN =========================
 
 class DQNConfig:
-    """Configuration pour l'agent DQN"""
+    """config agent DQN"""
     
     # Paramètres d'apprentissage
     LEARNING_RATE = 0.001
@@ -22,24 +22,30 @@ class DQNConfig:
 
 
 class TrainingConfig:
-    """Configuration pour l'entraînement"""
+    """env training"""
     
     # Nombre d'épisodes et fréquences
-    EPISODES = 3000
-    TRAIN_FREQUENCY = 4  # Entraîner tous les N steps
-    TARGET_UPDATE_FREQUENCY = 50  # Mettre à jour le modèle cible tous les N épisodes
+    EPISODES = 10000
+    TRAIN_FREQUENCY = 4
+    TARGET_UPDATE_FREQUENCY = 50    # Mettre à jour le modèle cible tous les N épisodes
     
     # Affichage et sauvegarde
-    SHOW_GAME_EVERY = 1  # Afficher une partie tous les N épisodes
-    SAVE_EVERY = 500  # Sauvegarder tous les N épisodes
-    PROGRESS_EVERY = 100  # Afficher les statistiques tous les N épisodes
+    SHOW_GAME_EVERY = 10            # Afficher une partie tous les N épisodes (réduit pour test)
+    SAVE_EVERY = 500                # Sauvegarder tous les N épisodes
+    PROGRESS_EVERY = 100            # Afficher les statistiques tous les N épisodes
     
     # Options d'affichage
-    SHOW_OPPONENT_CARDS = True  # Afficher les cartes adversaires pendant l'entraînement
+    SHOW_OPPONENT_CARDS = True      # Afficher les cartes adversaires pendant l'entraînement
+    
+    # TODO: Mode IA vs IA (pas prêt)
+    # MULTI_AGENT_MODE = False         # faire du IA vs IA ou IA vs bot
+    # AGENT_NAMES = ["IA-1", "IA-2"]  # Noms des deux agents
+    # ALTERNATE_TRAINING = True       # Alterner l'entraînement des deux agents
+    # SHARED_EXPERIENCE = False     # partager la mémoire de replay entre agents (à voir plus tard)
 
 
 class PokerConfig:
-    """Configuration pour l'environnement de poker"""
+    """env poker"""
     
     # Configuration initiale
     INITIAL_CHIPS = 1000
@@ -61,14 +67,18 @@ class PathConfig:
     # Répertoires
     CHECKPOINTS_DIR = "checkpoints"
     LOGS_DIR = "logs"
+    TENSORBOARD_LOG_DIR = "logs"
     
     # Fichiers de sauvegarde
     FINAL_MODEL = "checkpoints/dqn_treys_poker_final.weights.h5"
     EPISODE_MODEL_TEMPLATE = "checkpoints/dqn_treys_poker_episode_{}.weights.h5"
     
-    # Logs TensorBoard
-    TENSORBOARD_LOG_DIR = "logs"
-
+    # Modèles multi-agent
+    AGENT1_FINAL_MODEL = "checkpoints/agent1_dqn_final.weights.h5"
+    AGENT2_FINAL_MODEL = "checkpoints/agent2_dqn_final.weights.h5"
+    AGENT1_EPISODE_TEMPLATE = "checkpoints/agent1_episode_{}.weights.h5"
+    AGENT2_EPISODE_TEMPLATE = "checkpoints/agent2_episode_{}.weights.h5"
+    
 
 # ========================= CONFIGURATION GLOBALE =========================
 
@@ -80,13 +90,9 @@ class Config:
     POKER = PokerConfig()
     PATHS = PathConfig()
     
-    # Informations sur le projet
-    PROJECT_NAME = "DQN Texas Hold'em No Limit"
-    VERSION = "1.0.0"
-    
     # Configuration système
-    TENSORFLOW_THREADS = 14
-    RANDOM_SEED = 42
+    # TENSORFLOW_THREADS = 14   #n'a pas l'air de marcher
+    RANDOM_SEED = 42            # le sens de la vie
 
 
 # Fonction pour charger une configuration personnalisée

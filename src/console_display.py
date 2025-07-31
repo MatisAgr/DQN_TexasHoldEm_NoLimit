@@ -5,6 +5,7 @@ from colorama import init, Fore, Back, Style
 from treys import Card as TreysCard
 from typing import List
 from poker_game import PokerAction, TreysPokerEnv
+from config import config
 
 init(autoreset=True) # reset de la couleur après chaque print
 
@@ -152,3 +153,76 @@ class PokerConsole:
                 print(f"\n{Fore.YELLOW}🤝 ÉGALITÉ! Personne ne gagne.{Style.RESET_ALL}")
                         
         print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
+    
+    def render_multi_agent_game(env, show_both_hands: bool = False) -> None:
+        """Affiche l'état complet du jeu multi-agent"""
+        PokerConsole.print_header(f"MULTI-AGENT POKER - {env.get_betting_round_name()}")
+        
+        # Cartes de l'agent 1
+        PokerConsole.print_cards(env.agent1_cards, f"🤖 {config.TRAINING.AGENT_NAMES[0]} main")
+        agent1_strength, agent1_class = env.get_agent_hand_info(1)
+        PokerConsole.print_hand_strength(agent1_strength, agent1_class)
+        
+        # Cartes de l'agent 2 (optionnel)
+        if show_both_hands:
+            PokerConsole.print_cards(env.agent2_cards, f"🤖 {config.TRAINING.AGENT_NAMES[1]} main")
+            agent2_strength, agent2_class = env.get_agent_hand_info(2)
+            print(f"{Fore.BLUE}Force {config.TRAINING.AGENT_NAMES[1]}: {agent2_strength} ({agent2_class}){Style.RESET_ALL}")
+        
+        # Cartes communes
+        if env.community_cards:
+            PokerConsole.print_cards(env.community_cards, "🃏 Board")
+        
+        # État du jeu multi-agent
+        PokerConsole.print_multi_agent_game_state(env)
+        
+        # Actions des agents
+        if env.last_action_agent1:
+            PokerConsole.print_action(f"🤖 {config.TRAINING.AGENT_NAMES[0]} move", env.last_action_agent1)
+        
+        if env.last_action_agent2:
+            PokerConsole.print_action(f"🤖 {config.TRAINING.AGENT_NAMES[1]} move", env.last_action_agent2)
+        
+        # Tour actuel
+        current_agent = config.TRAINING.AGENT_NAMES[env.current_player - 1]
+        print(f"{Fore.YELLOW}🎯 Tour de: {current_agent}{Style.RESET_ALL}")
+        
+        # Résultat final
+        if env.done:
+            if env.winner == "agent1":
+                print(f"\n{Fore.GREEN}🎉 VICTOIRE {config.TRAINING.AGENT_NAMES[0]}! Gagne {env.pot - env.agent1_bet} jetons!{Style.RESET_ALL}")
+            elif env.winner == "agent2":
+                print(f"\n{Fore.GREEN}🎉 VICTOIRE {config.TRAINING.AGENT_NAMES[1]}! Gagne {env.pot - env.agent2_bet} jetons!{Style.RESET_ALL}")
+            else:
+                print(f"\n{Fore.YELLOW}🤝 ÉGALITÉ! Personne ne gagne.{Style.RESET_ALL}")
+                        
+        print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
+    
+    @staticmethod  
+    def print_multi_agent_game_state(env) -> None:
+        """Affiche l'état du jeu multi-agent"""
+        print(f"\n{Fore.MAGENTA}┌─ ÉTAT MULTI-AGENT ────────────────────────────────────────────────────┐")
+        print(f"│ Pot: {Fore.YELLOW}{env.pot:>6}{Style.RESET_ALL} jetons\t\t│\tRound: {Fore.CYAN}{env.get_betting_round_name():<12}{Style.RESET_ALL}\t\t│")
+        print(f"│ {config.TRAINING.AGENT_NAMES[0]} jetons: {Fore.GREEN}{env.agent1_chips:>6}{Style.RESET_ALL}\t│\t{config.TRAINING.AGENT_NAMES[1]} jetons: {Fore.RED}{env.agent2_chips:>6}{Style.RESET_ALL}\t│")
+        print(f"│ {config.TRAINING.AGENT_NAMES[0]} mise: {Fore.BLUE}{env.agent1_bet:>6}{Style.RESET_ALL}\t│\t{config.TRAINING.AGENT_NAMES[1]} mise: {Fore.BLUE}{env.agent2_bet:>6}{Style.RESET_ALL}\t\t│")
+        print(f"│ Position: {Fore.CYAN}{env.agent1_position}{Style.RESET_ALL}\t\t│\tPosition: {Fore.CYAN}{env.agent2_position}{Style.RESET_ALL}\t\t\t│")
+        print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
+    
+    @staticmethod
+    def print_multi_agent_training_progress(episode: int, agent1_reward: float, agent2_reward: float,
+                                          agent1_epsilon: float, agent2_epsilon: float,
+                                          agent1_win_rate: float, agent2_win_rate: float,
+                                          avg_loss1: float, avg_loss2: float) -> None:
+        """Affiche le progrès de l'entraînement multi-agent"""
+        agent1_color = Fore.GREEN if agent1_win_rate > 50 else Fore.RED
+        agent2_color = Fore.GREEN if agent2_win_rate > 50 else Fore.RED
+        
+        print(f"{Fore.CYAN}Episode {episode:4d}{Style.RESET_ALL}")
+        print(f"  {config.TRAINING.AGENT_NAMES[0]}: Reward: {agent1_color}{agent1_reward:6.1f}{Style.RESET_ALL} | "
+              f"Epsilon: {Fore.BLUE}{agent1_epsilon:.3f}{Style.RESET_ALL} | "
+              f"Wins: {agent1_color}{agent1_win_rate:5.1f}%{Style.RESET_ALL} | "
+              f"Loss: {Fore.MAGENTA}{avg_loss1:.4f}{Style.RESET_ALL}")
+        print(f"  {config.TRAINING.AGENT_NAMES[1]}: Reward: {agent2_color}{agent2_reward:6.1f}{Style.RESET_ALL} | "
+              f"Epsilon: {Fore.BLUE}{agent2_epsilon:.3f}{Style.RESET_ALL} | "
+              f"Wins: {agent2_color}{agent2_win_rate:5.1f}%{Style.RESET_ALL} | "
+              f"Loss: {Fore.MAGENTA}{avg_loss2:.4f}{Style.RESET_ALL}")
