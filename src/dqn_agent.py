@@ -12,14 +12,11 @@ from config import config
 
 
 class DQNAgent:
-    """agent DQN"""
     
     def __init__(self, state_size: int, num_actions: int, learning_rate: float = None,
                  epsilon: float = None, epsilon_min: float = None, epsilon_decay: float = None,
                  gamma: float = None, memory_size: int = None):
-        """
-        Initialise l'agent DQN
-        """
+        
         
         self.state_size = state_size
         self.num_actions = num_actions
@@ -56,8 +53,8 @@ class DQNAgent:
         self.target_model = self._create_model()
         self.target_model.set_weights(self.q_model.get_weights())
     
+    # creation du modele
     def _create_model(self) -> tf.keras.Model:
-        """Crée le modèle Q-Network pour le poker"""
         model = tf.keras.Sequential()
         
         # Couche d'entrée
@@ -80,13 +77,8 @@ class DQNAgent:
         )
         return model
     
+    # callbacks
     def get_callbacks(self, episode: int = 0) -> List[tf.keras.callbacks.Callback]:
-        """
-        Callbacks de l'entrainement avec support TensorBoard amélioré
-        
-        Args:
-            episode: Numéro de l'épisode actuel pour les logs TensorBoard
-        """
         # Créer un dossier unique pour cette session d'entrainement
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -120,53 +112,35 @@ class DQNAgent:
             )
         ]
     
+    # stocke une transition dans la memoire de replay
     def store_transition(self, state: np.ndarray, action: int, reward: float, 
                         next_state: np.ndarray, done: bool) -> None:
-        """Stocke une transition dans la mémoire de replay"""
         self.memory.append((state, action, reward, next_state, done))
     
+    # retourne toutes les actions legales (elles le sont toutes mdr)
     def get_legal_actions(self) -> List[int]:
-        """Retourne toutes les actions légales (pour cette version simple, toutes le sont)"""
         return list(range(self.num_actions))
     
+    # choisit une action selon e-greedy
     def act(self, state: np.ndarray, training: bool = True) -> int:
-        """
-        Choisit une action selon la politique epsilon-greedy
-        
-        Args:
-            state: État actuel
-            training: Si True, utilise epsilon-greedy, sinon exploitation pure
-            
-        Returns:
-            Action à exécuter
-        """
         if training and np.random.random() < self.epsilon:
             return np.random.choice(self.get_legal_actions())
         else:
             q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
             return np.argmax(q_values)
     
+    # retourne les Q-values pour un etat donné
     def get_q_values(self, state: np.ndarray) -> np.ndarray:
-        """Retourne les Q-values pour un état donné"""
         return self.q_model.predict(state[np.newaxis], verbose=0)[0]
     
+    # echantillonne un batch de transitions de la mémoire
     def sample_batch(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Échantillonne un batch de transitions de la mémoire"""
         batch = random.sample(self.memory, batch_size)
         states, actions, rewards, next_states, dones = map(np.array, zip(*batch))
         return states, actions, rewards, next_states, dones
     
+    # effectue un pas d'entraînement du modele DQN
     def train_step(self, batch_size: int = None, use_callbacks: bool = True) -> Optional[float]:
-        """
-        Effectue un pas d'entraînement du modèle DQN
-        
-        Args:
-            batch_size: Taille du batch d'entraînement (utilise la config si None)
-            use_callbacks: Utilise les callbacks TensorBoard et autres métriques
-            
-        Returns:
-            Loss de l'entraînement ou None si pas assez de données
-        """
         if batch_size is None:
             batch_size = self.batch_size
             
@@ -177,15 +151,15 @@ class DQNAgent:
         
         # Calcul des Q-values cibles
         next_q_values = self.target_model.predict(next_states, verbose=0)
-        max_next_q_values = np.max(next_q_values, axis=1)
+        max_next_q_values = np.max(next_q_values, axis=1) # Q(s', a') pour les états suivants
         
-        target_q_values = self.q_model.predict(states, verbose=0)
+        target_q_values = self.q_model.predict(states, verbose=0) # Q(s, a) pour les etats actuels
         
         for i in range(batch_size):
             if dones[i]:
-                target_q_values[i][actions[i]] = rewards[i]
+                target_q_values[i][actions[i]] = rewards[i] # Q(s, a) = r si l'etat suivant est terminal
             else:
-                target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i]
+                target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] # Q(s, a) = r + gamma * max_a' Q(s', a')
         
         # Entraîner le modèle avec ou sans callbacks
         if use_callbacks:
@@ -197,21 +171,23 @@ class DQNAgent:
         loss = history.history['loss'][0]
         
         # Enregistrer les statistiques
-        self.training_stats['losses'].append(loss)
-        if len(self.training_stats['losses']) > 1000:  # Garder seulement les 1000 dernières
-            self.training_stats['losses'].pop(0)
+        self.training_stats['losses'].append(loss) # enregistrer la perte
+        if len(self.training_stats['losses']) > 1000:  # garder seulement les 1000 dernières
+            self.training_stats['losses'].pop(0) # garder la mémoire légère
             
         return loss
     
+    # Met à jour l'epsilon pour la politique e-greedy
     def update_epsilon(self) -> None:
-        """Met à jour epsilon selon la stratégie de décroissance"""
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay) # reduction exponentielle de l'epsilon 
         
         # Enregistrer l'historique d'epsilon
         self.training_stats['epsilon_history'].append(self.epsilon)
         if len(self.training_stats['epsilon_history']) > 1000:
             self.training_stats['epsilon_history'].pop(0)
     
+    # enregistre les statistiques d'un épisode
+    # episode_reward: récompense totale de l'épisode, episode_length: longueur de l'épisode, avg_q_value: q-value moyenne de l'épisode
     def record_episode_stats(self, episode_reward: float, episode_length: int, avg_q_value: float = None) -> None:
         """
         Enregistre les statistiques d'un épisode
@@ -232,18 +208,12 @@ class DQNAgent:
             if len(self.training_stats[key]) > 1000:
                 self.training_stats[key].pop(0)
     
+    # retourne les statistiques d'entrainement
     def get_training_stats(self) -> dict:
-        """Retourne les statistiques d'entraînement"""
         return self.training_stats.copy()
     
+    # affiche les statistiques d'entrainement
     def print_training_stats(self, episode: int, window: int = 100) -> None:
-        """
-        Affiche les statistiques d'entraînement
-        
-        Args:
-            episode: Numéro de l'épisode actuel
-            window: Fenêtre pour calculer les moyennes
-        """
         if not self.training_stats['rewards']:
             return
             
