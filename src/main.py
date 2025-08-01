@@ -85,7 +85,7 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
             
             # entrainement periodique (sans callbacks pour eviter les problemes)
             if step_count % train_frequency == 0:
-                loss = agent.train_step(use_callbacks=False)
+                loss = agent.train_step()
                 if loss is not None:
                     episode_loss += loss
             

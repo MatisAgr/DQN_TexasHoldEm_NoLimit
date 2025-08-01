@@ -76,7 +76,7 @@ class DQNAgent:
         return model
     
     # callbacks
-    def get_callbacks(self, episode: int = 0) -> List[tf.keras.callbacks.Callback]:
+    def get_callbacks(self) -> List[tf.keras.callbacks.Callback]:
         # un dossier par session de train
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_log_dir = os.path.join(config.PATHS.TENSORBOARD_LOG_DIR, f"training_{timestamp}")
@@ -178,8 +178,7 @@ class DQNAgent:
                 # episode continue : q-value = reward + valeur future escomptee
                 target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] # Q(s, a) = r + gamma * max_a' Q(s', a')
         
-        # Entraîner le modèle avec ou sans callbacks
-        callbacks = self.get_callbacks(episode=0)  # Nous n'avons pas le numéro d'épisode ici
+        callbacks = self.get_callbacks()
         history = self.q_model.fit(states, target_q_values, verbose=1, epochs=1, callbacks=callbacks)
         
         loss = history.history['loss'][0]
