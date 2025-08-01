@@ -14,18 +14,18 @@ from config import config
 class DQNAgent:
     
     def __init__(self, state_size: int, num_actions: int, learning_rate: float = None,
-                 epsilon: float = None, epsilon_min: float = None, epsilon_decay: float = None,
+                 temperature_start: float = None, temperature_min: float = None, temperature_decay: float = None,
                  gamma: float = None, memory_size: int = None):
         
-        
+
         self.state_size = state_size
         self.num_actions = num_actions
         
         # Paramètres d'apprentissage
         self.learning_rate = learning_rate if learning_rate is not None else config.DQN.LEARNING_RATE
-        self.epsilon = epsilon if epsilon is not None else config.DQN.EPSILON_START
-        self.epsilon_min = epsilon_min if epsilon_min is not None else config.DQN.EPSILON_MIN
-        self.epsilon_decay = epsilon_decay if epsilon_decay is not None else config.DQN.EPSILON_DECAY
+        self.temperature = temperature_start if temperature_start is not None else 2.0
+        self.temperature_min = temperature_min if temperature_min is not None else 0.1
+        self.temperature_decay = temperature_decay if temperature_decay is not None else 0.995
         self.gamma = gamma if gamma is not None else config.DQN.GAMMA
         self.batch_size = config.DQN.BATCH_SIZE
         
@@ -39,7 +39,7 @@ class DQNAgent:
             'rewards': [],
             'episode_lengths': [],
             'q_values': [],
-            'epsilon_history': []
+            'temperature_history': []
         }
         
         # TensorBoard writer personnalisé
@@ -122,12 +122,29 @@ class DQNAgent:
         return list(range(self.num_actions))
     
     # choisit une action selon e-greedy
-    def act(self, state: np.ndarray, training: bool = True) -> int:
-        if training and np.random.random() < self.epsilon:
-            return np.random.choice(self.get_legal_actions())
+    def act(self, state: np.ndarray, training: bool = True, temperature: float = 1.0) -> int:
+        """choisit une action avec softmax au lieu d'epsilon-greedy"""
+        q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
+        
+        if training and temperature > 0:
+            # softmax avec temperature pour l'exploration
+            exp_q = np.exp(q_values / temperature)
+            probabilities = exp_q / np.sum(exp_q)
+            return np.random.choice(len(q_values), p=probabilities)
         else:
-            q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
+            # choix deterministe
             return np.argmax(q_values)
+
+
+    def update_temperature(self, decay_rate: float = None) -> None:
+        """reduit la temperature pour moins explorer"""
+        decay = decay_rate if decay_rate is not None else self.temperature_decay
+        self.temperature = max(self.temperature_min, self.temperature * decay)
+        
+        # enregistrer l'historique de temperature
+        self.training_stats['temperature_history'].append(self.temperature)
+        if len(self.training_stats['temperature_history']) > 1000:
+            self.training_stats['temperature_history'].pop(0)
     
     # retourne les Q-values pour un etat donné
     def get_q_values(self, state: np.ndarray) -> np.ndarray:
@@ -227,40 +244,33 @@ class DQNAgent:
         win_rate = len([r for r in recent_rewards if r > 0]) / len(recent_rewards) * 100 if recent_rewards else 0
         
         print(f"\n{'='*80}")
-        print(f"Episode: {episode:4d} | Epsilon: {self.epsilon:.4f} | Memory: {len(self.memory):5d}")
-        print(f"Reward (avg {window}): {avg_reward:8.2f} | Win Rate: {win_rate:5.1f}%")
-        print(f"Loss (avg {window}):   {avg_loss:8.4f} | Avg Length: {avg_length:5.1f}")
+        print(f"episode: {episode:4d} | temperature: {self.temperature:.4f} | memory: {len(self.memory):5d}")
+        print(f"reward (avg {window}): {avg_reward:8.2f} | win rate: {win_rate:5.1f}%")
+        print(f"loss (avg {window}):   {avg_loss:8.4f} | avg length: {avg_length:5.1f}")
         print(f"{'='*80}")
     
     def log_to_tensorboard(self, episode: int, episode_reward: float, episode_loss: float, 
                           episode_length: int, win: bool = False) -> None:
         """
-        Enregistre les métriques dans TensorBoard
-        
-        Args:
-            episode: Numéro de l'épisode
-            episode_reward: Récompense de l'épisode
-            episode_loss: Perte moyenne de l'épisode
-            episode_length: Longueur de l'épisode
-            win: Si l'épisode a été gagné
+        enregistre les metriques dans tensorboard avec temperature au lieu d'epsilon
         """
         with self.tensorboard_writer.as_default():
-            tf.summary.scalar('Episode/Reward', episode_reward, step=episode)
-            tf.summary.scalar('Episode/Loss', episode_loss, step=episode)
-            tf.summary.scalar('Episode/Length', episode_length, step=episode)
-            tf.summary.scalar('Episode/Epsilon', self.epsilon, step=episode)
-            tf.summary.scalar('Episode/Memory_Size', len(self.memory), step=episode)
-            tf.summary.scalar('Episode/Win_Rate', 1.0 if win else 0.0, step=episode)
+            tf.summary.scalar('episode/reward', episode_reward, step=episode)
+            tf.summary.scalar('episode/loss', episode_loss, step=episode)
+            tf.summary.scalar('episode/length', episode_length, step=episode)
+            tf.summary.scalar('episode/temperature', self.temperature, step=episode)  # remplacer epsilon
+            tf.summary.scalar('episode/memory_size', len(self.memory), step=episode)
+            tf.summary.scalar('episode/win_rate', 1.0 if win else 0.0, step=episode)
             
-            # Moyennes mobiles sur 100 épisodes
+            # moyennes mobiles sur 100 episodes
             if len(self.training_stats['rewards']) >= 100:
                 avg_reward_100 = np.mean(self.training_stats['rewards'][-100:])
                 avg_loss_100 = np.mean(self.training_stats['losses'][-100:]) if self.training_stats['losses'] else 0
                 win_rate_100 = len([r for r in self.training_stats['rewards'][-100:] if r > 0]) / 100
                 
-                tf.summary.scalar('Moving_Average_100/Reward', avg_reward_100, step=episode)
-                tf.summary.scalar('Moving_Average_100/Loss', avg_loss_100, step=episode)
-                tf.summary.scalar('Moving_Average_100/Win_Rate', win_rate_100, step=episode)
+                tf.summary.scalar('moving_average_100/reward', avg_reward_100, step=episode)
+                tf.summary.scalar('moving_average_100/loss', avg_loss_100, step=episode)
+                tf.summary.scalar('moving_average_100/win_rate', win_rate_100, step=episode)
             
             self.tensorboard_writer.flush()
     
