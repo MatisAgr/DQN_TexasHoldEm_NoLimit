@@ -10,7 +10,7 @@ class DQNConfig:
     EPSILON_START = 1.0     # epsilon initial pour l'exploration
     EPSILON_MIN = 0.05      # epsilon minimum pour l'exploration
     EPSILON_DECAY = 0.9995  # taux de décroissance de l'exploration
-    GAMMA = 0.95            # facteur de d'importance des récompenses futures (long terme)
+    GAMMA = 0.95            # facteur d'actualisation (importance des récompenses futures (long terme))
     
     TEMPERATURE_START = 2.0   # température initiale pour l'exploration softmax
     TEMPERATURE_MIN = 0.1     # température minimum pour l'exploration softmax

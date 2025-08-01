@@ -209,18 +209,22 @@ class DQNAgent:
             self.training_stats['epsilon_history'].pop(0)
     
     # enregistre les statistiques d'un épisode
-    # episode_reward: récompense totale de l'épisode, episode_length: longueur de l'épisode, avg_q_value: q-value moyenne de l'épisode
+    # episode_reward: récompense totale de l'épisode
+    # episode_length: longueur de l'épisode
+    # avg_q_value: q-value moyenne de l'épisode
     def record_episode_stats(self, episode_reward: float, episode_length: int, avg_q_value: float = None) -> None:
-        self.training_stats['rewards'].append(episode_reward)
-        self.training_stats['episode_lengths'].append(episode_length)
-        
-        if avg_q_value is not None:
-            self.training_stats['q_values'].append(avg_q_value)
-        
-        # Garder seulement les 1000 dernières entrées
-        for key in ['rewards', 'episode_lengths', 'q_values']:
-            if len(self.training_stats[key]) > 1000:
-                self.training_stats[key].pop(0)
+        # éviter les doublons
+        if not self.training_stats['rewards'] or self.training_stats['rewards'][-1] != episode_reward:
+            self.training_stats['rewards'].append(episode_reward)
+            self.training_stats['episode_lengths'].append(episode_length)
+            
+            if avg_q_value is not None:
+                self.training_stats['q_values'].append(avg_q_value)
+            
+            # 1000 dernières entrées
+            for key in ['rewards', 'episode_lengths', 'q_values']:
+                if len(self.training_stats[key]) > 1000:
+                    self.training_stats[key].pop(0)
     
     # retourne les statistiques d'entrainement
     def get_training_stats(self) -> dict:
@@ -248,25 +252,40 @@ class DQNAgent:
     
     # enregistre les metriques dans tensorboard avec temperature au lieu d'epsilon
     def log_to_tensorboard(self, episode: int, episode_reward: float, episode_loss: float, 
-                          episode_length: int, win: bool = False) -> None:
+                        episode_length: int, win: bool = False, already_recorded: bool = False) -> None:
+        
+        # Enregistrer les statistiques actuelles si pas déjà fait
+        if not already_recorded:
+            self.record_episode_stats(episode_reward, episode_length)
+            if episode_loss is not None:
+                self.training_stats['losses'].append(episode_loss)
+                if len(self.training_stats['losses']) > 1000:
+                    self.training_stats['losses'].pop(0)
+        
         with self.tensorboard_writer.as_default():
-            tf.summary.scalar('episode/reward', episode_reward, step=episode)
-            tf.summary.scalar('episode/loss', episode_loss, step=episode)
-            tf.summary.scalar('episode/length', episode_length, step=episode)
-            tf.summary.scalar('episode/temperature', self.temperature, step=episode)  # remplacer epsilon
-            tf.summary.scalar('episode/memory_size', len(self.memory), step=episode)
-            tf.summary.scalar('episode/win_rate', 1.0 if win else 0.0, step=episode)
+            tf.summary.scalar('Episode/Reward', episode_reward, step=episode)
+            tf.summary.scalar('Episode/Loss', episode_loss, step=episode)
+            tf.summary.scalar('Episode/Length', episode_length, step=episode)
+            tf.summary.scalar('Episode/Temperature', self.temperature, step=episode)
+            tf.summary.scalar('Episode/Memory_size', len(self.memory), step=episode)
+            tf.summary.scalar('Episode/Win_rate', 1.0 if win else 0.0, step=episode)
             
-            # moyennes mobiles sur 100 episodes
-            if len(self.training_stats['rewards']) >= 100:
-                avg_reward_100 = np.mean(self.training_stats['rewards'][-100:])
-                avg_loss_100 = np.mean(self.training_stats['losses'][-100:]) if self.training_stats['losses'] else 0
-                win_rate_100 = len([r for r in self.training_stats['rewards'][-100:] if r > 0]) / 100
+            # moyenne des récompenses et pertes sur les 100 derniers épisodes
+            if len(self.training_stats['rewards']) > 0:
+                # 100 épisodes
+                window_size = min(100, len(self.training_stats['rewards']))
                 
-                tf.summary.scalar('moving_average_100/reward', avg_reward_100, step=episode)
-                tf.summary.scalar('moving_average_100/loss', avg_loss_100, step=episode)
-                tf.summary.scalar('moving_average_100/win_rate', win_rate_100, step=episode)
-            
+                avg_reward_100 = np.mean(self.training_stats['rewards'][-window_size:])
+                avg_loss_100 = np.mean(self.training_stats['losses'][-window_size:]) if self.training_stats['losses'] else 0
+                
+                # nombre de wins / nombre d'épisodes 
+                wins_in_window = len([r for r in self.training_stats['rewards'][-window_size:] if r > 0])
+                win_rate_100 = wins_in_window / window_size
+                
+                tf.summary.scalar('Moving_average_100/Reward', avg_reward_100, step=episode)
+                tf.summary.scalar('Moving_average_100/Loss', avg_loss_100, step=episode)
+                tf.summary.scalar('Moving_average_100/Win_rate', win_rate_100, step=episode)
+
             self.tensorboard_writer.flush()
     
     # ferme le writer TensorBoard
