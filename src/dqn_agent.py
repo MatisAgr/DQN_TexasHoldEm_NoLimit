@@ -41,7 +41,7 @@ class DQNAgent:
             'epsilon_history': []
         }
         
-        # TensorBoard writer personnalisé
+        # TensorBoard logger personnalisé
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.tensorboard_log_dir = os.path.join(config.PATHS.TENSORBOARD_LOG_DIR, f"dqn_training_{timestamp}")
         self.tensorboard_writer = tf.summary.create_file_writer(self.tensorboard_log_dir)
@@ -82,13 +82,13 @@ class DQNAgent:
     
     # callbacks
     def get_callbacks(self) -> List[tf.keras.callbacks.Callback]:
-        # un dossier par session de train
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        tensorboard_log_dir = os.path.join(config.PATHS.TENSORBOARD_LOG_DIR, f"training_{timestamp}")
+        # même dossier que le logger personnalisé pour avoir tout au même endroit
+        tensorboard_log_dir = self.tensorboard_log_dir
         
         return [
             # TensorBoard pour le monitoring
-            # On a déjà un system de log perso, mais cela créé le dossier train
+            # on a déjà un system de log perso, mais cela créé le dossier train
+
             tf.keras.callbacks.TensorBoard(
                 log_dir=tensorboard_log_dir,
                 update_freq='epoch'  # maj par epoch
@@ -123,7 +123,15 @@ class DQNAgent:
     # stocke une transition dans la memoire de replay
     def store_transition(self, state: np.ndarray, action: int, reward: float, 
                         next_state: np.ndarray, done: bool) -> None:
-        self.memory.append((state, action, reward, next_state, done))
+        # normaliser les rewards pour stabiliser l'apprentissage
+        # car de base les rewards sont les même que les gains
+        normalized_reward = self.normalize_reward(reward)
+        self.memory.append((state, action, normalized_reward, next_state, done))
+    
+    # normalise les rewards pour éviter des Q-values trop élevées
+    def normalize_reward(self, reward: float) -> float:
+        # clipper les rewards entre -10 et +10 pour stabiliser l'apprentissage
+        return np.clip(reward / 100.0, -10.0, 10.0)
     
     # retourne toutes les actions legales (elles le sont toutes mdr)
     def get_legal_actions(self) -> List[int]:
@@ -188,7 +196,7 @@ class DQNAgent:
                 # episode continue : q-value = reward + valeur future escomptee
                 target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] # Q(s, a) = r + gamma * max_a' Q(s', a')
         
-        history = self.q_model.fit(states, target_q_values, verbose=1, epochs=1, callbacks=self.callbacks)
+        history = self.q_model.fit(states, target_q_values, verbose=0, epochs=1, callbacks=self.callbacks)
         
         loss = history.history['loss'][0]
         

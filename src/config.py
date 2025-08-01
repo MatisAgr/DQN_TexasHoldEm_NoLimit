@@ -6,7 +6,7 @@
 class DQNConfig:
     
     # apprentissage
-    LEARNING_RATE = 0.001   # taux d'apprentissage
+    LEARNING_RATE = 0.0001  # taux d'apprentissage
     EPSILON_START = 1.0     # epsilon initial pour l'exploration
     EPSILON_MIN = 0.05      # epsilon minimum pour l'exploration
     EPSILON_DECAY = 0.9995  # taux de décroissance de l'exploration
