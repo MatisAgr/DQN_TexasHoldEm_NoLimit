@@ -151,7 +151,7 @@ class DQNAgent:
         return states, actions, rewards, next_states, dones
     
     # effectue un pas d'entraînement du modele DQN
-    def train_step(self, batch_size: int = None, use_callbacks: bool = True) -> Optional[float]:
+    def train_step(self, batch_size: int = None) -> Optional[float]:
         # utilise la taille de batch par defaut si aucune n'est specifiee
         if batch_size is None:
             batch_size = self.batch_size
@@ -179,11 +179,8 @@ class DQNAgent:
                 target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] # Q(s, a) = r + gamma * max_a' Q(s', a')
         
         # Entraîner le modèle avec ou sans callbacks
-        if use_callbacks:
-            callbacks = self.get_callbacks(episode=0)  # Nous n'avons pas le numéro d'épisode ici
-            history = self.q_model.fit(states, target_q_values, verbose=0, epochs=1, callbacks=callbacks)
-        else:
-            history = self.q_model.fit(states, target_q_values, verbose=0, epochs=1)
+        callbacks = self.get_callbacks(episode=0)  # Nous n'avons pas le numéro d'épisode ici
+        history = self.q_model.fit(states, target_q_values, verbose=1, epochs=1, callbacks=callbacks)
         
         loss = history.history['loss'][0]
         

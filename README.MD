@@ -1,26 +1,36 @@
-# Projet DQN Texas Hold'em No Limit
+# 🃏 Projet DQN Texas Hold'em No Limit
 
 ## Vue d'ensemble
 
-Le projet implémente un **agent d'intelligence artificielle** utilisant le **Deep Q-Network (DQN)** pour apprendre à jouer au **Texas Hold'em Poker No Limit**. L'agent utilise l'apprentissage par renforcement avec exploration **softmax/température** au lieu de la méthode epsilon-greedy traditionnelle.
+Ce projet implémente un **agent d'intelligence artificielle** utilisant le **Deep Q-Network (DQN)** pour apprendre à jouer au **Texas Hold'em Poker No Limit**. L'agent utilise l'apprentissage par renforcement avec exploration **epsilon-greedy** pour développer une stratégie de poker optimale.
 
-## Structure des fichiers
+## 🚀 Fonctionnalités
+
+- **Agent DQN** avec réseau de neurones profond (128→128→64→32)
+- **Exploration epsilon-greedy** avec décroissance progressive (1.0 → 0.05)
+- **Experience Replay** avec buffer de 100K transitions
+- **Target Network** pour stabiliser l'entraînement
+- **TensorBoard** pour visualiser les métriques d'entraînement
+- **Environnement Poker** complet avec évaluation Treys
+- **Interface console** stylée avec affichage en temps réel
+
+## 📁 Structure des fichiers
 
 ```
 DQN_TexasHoldEm_NoLimit/
 ├── README.MD                    # Documentation principale
-├── regles-poker.MD             # Règles du poker Texas Hold'em
-├── requirements.txt            # Dépendances Python
+├── regles-poker.MD              # Règles du poker Texas Hold'em
+├── requirements.txt             # Dépendances Python
 └── src/
-    ├── main.py                # Point d'entrée principal
-    ├── config.py              # Configuration globale
-    ├── poker_game.py          # Environnement de jeu (TreysPokerEnv)
-    ├── dqn_agent.py          # Agent d'apprentissage par renforcement
-    ├── console_display.py     # Interface console stylée
-    ├── multi_agent_poker.py   # Jeu multi-agents (futur)
-    ├── multi_agent_training.py # Entraînement multi-agents (futur)
-    ├── checkpoints/           # Sauvegarde des modèles
-    └── logs/                  # Logs TensorBoard
+    ├── main.py                  # Point d'entrée principal
+    ├── config.py                # Configuration globale
+    ├── poker_game.py            # Environnement de jeu (TreysPokerEnv)
+    ├── dqn_agent.py             # Agent d'apprentissage par renforcement
+    ├── console_display.py       # Interface console trop stylé
+    ├── multi_agent_poker.py     # Jeu multi-agents (pas encore implémenté)
+    ├── multi_agent_training.py  # Entraînement multi-agents (pas encore implémenté)
+    ├── checkpoints/             # Sauvegarde des modèles
+    └── logs/                    # Logs TensorBoard
 ```
 
 ## Composants principaux
@@ -35,11 +45,15 @@ DQN_TexasHoldEm_NoLimit/
 - **Réseau de neurones** dense pour approximer Q(s,a)
 - **Experience Replay** avec buffer circulaire (100K transitions)
 - **Target Network** pour la stabilité d'entraînement
-- **Exploration softmax** avec température décroissante (2.0 → 0.1)
+- **Exploration epsilon-greedy** avec décroissance progressive
+- **TensorBoard logging** avec moyennes mobiles sur 100 épisodes
 
 ### 3. **Interface console** (console_display.py)
+> ![NOTE]
+> Vu qu'il n'y a pas d'environement de poker sur gymnasium, alors nous avons créé notre propre environnement de poker avec la bibliothèque Treys.
+
 - **Affichage stylé** avec couleurs (colorama)
-- **Visualisation des cartes** et de l'état du jeu
+- **Visualisation des cartes** et de l'état du jeu (avec Treys)
 - **Statistiques d'entraînement** en temps réel
 
 ## Flux d'entraînement
@@ -86,25 +100,32 @@ graph LR
 
 ```mermaid
 graph TD
-    A[Sélection d'action] --> B[Epsilon-Greedy Traditionnel]
-    A --> C[Softmax Température NOTRE APPROCHE]
+    A[Sélection d'action] --> B[Epsilon-Greedy NOTRE APPROCHE]
     
-    B --> D[10% aléatoire uniforme]
-    B --> E[90% meilleure action]
+    B --> C{ε < random?}
+    C -->|Oui| D[Action aléatoire uniforme]
+    C -->|Non| E[Meilleure action Q-values]
     
-    C --> F[Distribution probabiliste intelligente]
-    C --> G[Basée sur Q-values]
-    C --> H[Température décroissante 2.0 → 0.1]
+    B --> F[Epsilon décroissant 1.0 → 0.05]
     
-    F --> I[Actions prometteuses favorisées]
-    G --> J[Exploration graduelle]
-    H --> K[Transition douce exploration → exploitation]
+    D --> G[Exploration pure]
+    E --> H[Exploitation optimale]
+    F --> I[Transition progressive exploration → exploitation]
+    
+    G --> J[Découverte nouvelles stratégies]
+    H --> K[Utilisation apprentissage]
+    I --> L[Équilibre adaptatif]
 ```
 
-### Formule Softmax avec température
+### Stratégie Epsilon-Greedy
 $$
-P(\text{action}_i) = \frac{\exp\left(\frac{Q(s, \text{action}_i)}{\text{température}}\right)}{\sum_j \exp\left(\frac{Q(s, \text{action}_j)}{\text{température}}\right)}
+\text{action} = \begin{cases}
+\text{argmax}_a Q(s,a) & \text{si } \text{random} > \epsilon \\
+\text{action aléatoire} & \text{sinon}
+\end{cases}
 $$
+
+Avec décroissance : $\epsilon = \max(\epsilon_{\text{min}}, \epsilon \times \text{decay})$
 
 ## Technologies utilisées
 
@@ -127,16 +148,47 @@ graph LR
     B --> G[Batch Size: 32]
     B --> H[Memory: 100K]
     
-    C --> I[Episodes: 10K]
+    C --> I[Episodes: 2K]
     C --> J[Train Freq: 4]
     C --> K[Target Update: 50]
+    C --> L[Epsilon: 1.0→0.05]
     
-    D --> L[Initial Chips: 1000]
-    D --> M[Small Raise: 50]
-    D --> N[Big Raise: 100]
+    D --> M[Initial Chips: 1000]
+    D --> N[Small Raise: 50]
+    D --> O[Big Raise: 100]
 ```
 
-## Métriques d'entraînement
+## 📊 Résultats d'entraînement (TensorBoard)
+
+### Tableau des métriques finales
+
+| Métrique | Valeur Finale | Épisode | Description |
+|----------|--------------|---------|-------------|
+| **Win Rate (100 derniers)** | 69% | 1979 | Pourcentage de victoires sur 100 épisodes |
+| **Reward moyen (100 derniers)** | -14.9 | 1979 | Récompense moyenne sur 100 épisodes |
+| **Loss moyenne (100 derniers)** | 12,468 | 1979 | Erreur MSE du réseau sur 100 épisodes |
+| **Epsilon final** | 0.31 | 1979 | Taux d'exploration restant |
+| **Épisodes par seconde** | ~8.1 | - | Vitesse d'entraînement |
+| **Steps moyen par épisode** | 1-3 | - | Longueur moyenne des parties |
+
+### Performance d'entraînement
+
+```
+Progression typique:
+Episodes 0-500   : Apprentissage initial, win rate ~40-50%
+Episodes 500-1000: Stabilisation, win rate ~55-65%
+Episodes 1000+   : Convergence, win rate ~65-75%
+
+Vitesse d'entraînement:
+- ~8 épisodes/seconde
+- Episodes très courts (1-3 actions)
+- Décisions rapides au poker
+```
+
+### Notes importantes sur TensorBoard
+- **X-axis** : Numéro de l'épisode où la moyenne mobile est calculée
+- **Moving Average** : Moyenne glissante sur 100 épisodes précédents
+- **Window Size** : Métrique de debug confirmant la taille de fenêtre (100)
 
 ## Métriques d'entraînement surveillées
 
@@ -152,7 +204,7 @@ L'entraînement de l'agent DQN est suivi par plusieurs métriques clés permetta
 - **Q-values moyennes** : Valeurs moyennes des estimations de récompense future, permet de détecter la sur/sous-estimation des actions
 
 ### Métriques d'exploration
-- **Température actuelle** : Niveau d'exploration softmax (2.0 → 0.1), contrôle la transition exploration/exploitation
+- **Epsilon actuel** : Niveau d'exploration epsilon-greedy (1.0 → 0.05), contrôle la transition exploration/exploitation
 - **Taille mémoire** : Nombre de transitions stockées dans le buffer d'experience replay (max 100K), assure la diversité d'apprentissage
 
 Ces métriques sont visualisées en temps réel dans la console et sauvegardées via TensorBoard pour analyse post-entraînement.
@@ -167,23 +219,6 @@ L'agent apprend progressivement à :
 4. **Développer des stratégies** contre l'adversaire
 5. **Équilibrer bluff et value betting**
 
-## Evolution de l'apprentissage
-
-```mermaid
-graph LR
-    A[Début: Exploration] --> B[Milieu: Apprentissage]
-    A --> C[Température = 2.0]
-    A --> D[Actions quasi-aléatoires]
-    
-    B --> E[Reconnaissance patterns]
-    B --> F[Température décroissante]
-    
-    G[Fin: Exploitation] --> H[Température = 0.1]
-    G --> I[Stratégies optimisées]
-    G --> J[Jeu quasi-déterministe]
-    
-    B --> G
-```
 
 ## Extensions possibles
 
@@ -196,8 +231,9 @@ graph LR
 
 ## Avantages de l'approche
 
-1. **Exploration intelligente** : Favorise les actions prometteuses
-2. **Stabilité d'apprentissage** : Target network + experience replay
-3. **Flexibilité** : Configuration centralisée dans config.py
-4. **Monitoring** : TensorBoard + console colorée
-5. **Extensibilité** : Architecture modulaire pour multi-agents
+1. **Exploration robuste** : Epsilon-greedy garantit l'exploration continue
+2. **Simplicité** : Méthode éprouvée et facile à comprendre
+3. **Stabilité d'apprentissage** : Target network + experience replay
+4. **Flexibilité** : Configuration centralisée dans config.py
+5. **Monitoring** : TensorBoard + console colorée avec timing
+6. **Extensibilité** : Architecture modulaire pour multi-agents
