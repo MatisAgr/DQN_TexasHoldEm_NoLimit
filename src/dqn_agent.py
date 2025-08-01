@@ -28,6 +28,11 @@ class DQNAgent:
         self.gamma = gamma if gamma is not None else config.DQN.GAMMA
         self.batch_size = config.DQN.BATCH_SIZE
         
+        # Paramètres température pour softmax
+        self.temperature = getattr(config.DQN, 'TEMPERATURE_START', 2.0)
+        self.temperature_min = getattr(config.DQN, 'TEMPERATURE_MIN', 0.1)
+        self.temperature_decay = getattr(config.DQN, 'TEMPERATURE_DECAY', 0.995)
+        
         # mémoire
         memory_size = memory_size if memory_size is not None else config.DQN.MEMORY_SIZE
         self.memory = deque(maxlen=memory_size)
@@ -38,7 +43,8 @@ class DQNAgent:
             'rewards': [],
             'episode_lengths': [],
             'q_values': [],
-            'epsilon_history': []
+            'epsilon_history': [],
+            'temperature_history': []
         }
         
         # TensorBoard writer personnalisé
@@ -121,33 +127,54 @@ class DQNAgent:
     def get_legal_actions(self) -> List[int]:
         return list(range(self.num_actions))
     
-    # choisit une action selon epsilon-greedy
-    def act(self, state: np.ndarray, training: bool = True) -> int:
-        if training and np.random.random() < self.epsilon:
-            # EXPLORATION : action aléatoire
-            return np.random.choice(self.get_legal_actions())
-        else:
-            # EXPLOITATION : meilleure action selon les Q-values
-            q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
-            return np.argmax(q_values)
+    # choisit une action selon epsilon-greedy ou softmax avec température
+    def act(self, state: np.ndarray, training: bool = True, temperature: float = None) -> int:
+        q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
+        
+        if training:
+            # Utilise la température si fournie, sinon utilise epsilon-greedy
+            if temperature is not None and temperature > 0:
+                # Exploration avec température/softmax
+                exp_q = np.exp(q_values / temperature)
+                probabilities = exp_q / np.sum(exp_q)
+                return np.random.choice(len(q_values), p=probabilities)
+            elif np.random.random() < self.epsilon:
+                # EXPLORATION : action aléatoire (epsilon-greedy)
+                return np.random.choice(self.get_legal_actions())
+        
+        # EXPLOITATION : meilleure action selon les Q-values
+        return np.argmax(q_values)
 
     # mettre à jour l'epsilon pour la politique epsilon-greedy
     def update_epsilon(self) -> None:
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay) # reduction exponentielle de l'epsilon 
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         
         # Enregistrer l'historique d'epsilon
         self.training_stats['epsilon_history'].append(self.epsilon)
         if len(self.training_stats['epsilon_history']) > 1000:
             self.training_stats['epsilon_history'].pop(0)
     
+    # mettre à jour la température pour l'exploration softmax
+    def update_temperature(self, decay_rate: float = None) -> None:
+        """Réduction progressive de la température pour moins explorer"""
+        decay = decay_rate if decay_rate is not None else self.temperature_decay
+        self.temperature = max(self.temperature_min, self.temperature * decay)
+        
+        # Enregistrer l'historique de température
+        self.training_stats['temperature_history'].append(self.temperature)
+        if len(self.training_stats['temperature_history']) > 1000:
+            self.training_stats['temperature_history'].pop(0)
+    
     # retourne les Q-values pour un etat donné
     def get_q_values(self, state: np.ndarray) -> np.ndarray:
+        if state is None:
+            return np.zeros(self.num_actions)
         return self.q_model.predict(state[np.newaxis], verbose=0)[0]
     
     # echantillonne un batch de transitions de la mémoire
     def sample_batch(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         batch = random.sample(self.memory, batch_size)
-        states, actions, rewards, next_states, dones = map(np.array, zip(*batch)) # decomposition des transitions
+        states, actions, rewards, next_states, dones = map(np.array, zip(*batch))
         return states, actions, rewards, next_states, dones
     
     # effectue un pas d'entraînement du modele DQN
@@ -165,22 +192,22 @@ class DQNAgent:
         # Calcul des Q-values cibles
         # predit les q-values pour tous les etats suivants avec le reseau cible
         next_q_values = self.target_model.predict(next_states, verbose=0)
-        max_next_q_values = np.max(next_q_values, axis=1) # Q(s', a') pour les états suivants
+        max_next_q_values = np.max(next_q_values, axis=1)
         
-        target_q_values = self.q_model.predict(states, verbose=0) # Q(s, a) pour les etats actuels
+        target_q_values = self.q_model.predict(states, verbose=0)
         
         # met a jour seulement les q-values des actions qui ont ete prises
         for i in range(batch_size):
             if dones[i]:
                 # episode termine : q-value = reward seulement (pas de futur)
-                target_q_values[i][actions[i]] = rewards[i] # Q(s, a) = r si l'etat suivant est terminal
+                target_q_values[i][actions[i]] = rewards[i]
             else:
                 # episode continue : q-value = reward + valeur future escomptee
-                target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] # Q(s, a) = r + gamma * max_a' Q(s', a')
+                target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i]
         
         # Entraîner le modèle avec ou sans callbacks
         if use_callbacks:
-            callbacks = self.get_callbacks(episode=0)  # Nous n'avons pas le numéro d'épisode ici
+            callbacks = self.get_callbacks(episode=0)
             history = self.q_model.fit(states, target_q_values, verbose=0, epochs=1, callbacks=callbacks)
         else:
             history = self.q_model.fit(states, target_q_values, verbose=0, epochs=1)
@@ -188,25 +215,13 @@ class DQNAgent:
         loss = history.history['loss'][0]
         
         # Enregistrer les statistiques
-        self.training_stats['losses'].append(loss) # enregistrer la perte
-        if len(self.training_stats['losses']) > 1000:  # garder seulement les 1000 dernières
-            self.training_stats['losses'].pop(0) # garder la mémoire légère
+        self.training_stats['losses'].append(loss)
+        if len(self.training_stats['losses']) > 1000:
+            self.training_stats['losses'].pop(0)
             
         return loss
     
-    # Met à jour l'epsilon pour la politique epsilon-greedy
-    def update_epsilon(self) -> None:
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay) # reduction exponentielle de l'epsilon 
-        
-        # Enregistrer l'historique d'epsilon
-        self.training_stats['epsilon_history'].append(self.epsilon)
-        if len(self.training_stats['epsilon_history']) > 1000:
-            self.training_stats['epsilon_history'].pop(0)
-    
     # enregistre les statistiques d'un épisode
-    # episode_reward: récompense totale de l'épisode
-    # episode_length: longueur de l'épisode
-    # avg_q_value: q-value moyenne de l'épisode
     def record_episode_stats(self, episode_reward: float, episode_length: int, avg_q_value: float = None) -> None:
         # éviter les doublons
         if not self.training_stats['rewards'] or self.training_stats['rewards'][-1] != episode_reward:
@@ -240,12 +255,12 @@ class DQNAgent:
         win_rate = len([r for r in recent_rewards if r > 0]) / len(recent_rewards) * 100 if recent_rewards else 0
         
         print(f"\n{'='*80}")
-        print(f"Episode: {episode:4d}\t|\tEpsilon: {self.epsilon:.4f}\t|\tMemory: {len(self.memory):5d}")
-        print(f"Reward (avg {window}): {avg_reward:8.2f}\t|\tWin Rate: {win_rate:5.1f}%")
-        print(f"Loss (avg {window}): {avg_loss:8.4f}\t|\tAvg Length: {avg_length:5.1f}")
+        print(f"Episode: {episode:4d}\t|\tEpsilon: {self.epsilon:.4f}\t|\tTemperature: {self.temperature:.4f}")
+        print(f"Memory: {len(self.memory):5d}\t|\tWin Rate: {win_rate:5.1f}%")
+        print(f"Reward (avg {window}): {avg_reward:8.2f}\t|\tLoss: {avg_loss:8.4f}")
         print(f"{'='*80}")
     
-    # enregistre les metriques dans tensorboard avec temperature au lieu d'epsilon
+    # enregistre les metriques dans tensorboard
     def log_to_tensorboard(self, episode: int, episode_reward: float, episode_loss: float, 
                         episode_length: int, win: bool = False, already_recorded: bool = False) -> None:
         
@@ -262,18 +277,17 @@ class DQNAgent:
             tf.summary.scalar('Episode/Loss', episode_loss, step=episode)
             tf.summary.scalar('Episode/Length', episode_length, step=episode)
             tf.summary.scalar('Episode/Epsilon', self.epsilon, step=episode)
+            tf.summary.scalar('Episode/Temperature', self.temperature, step=episode)
             tf.summary.scalar('Episode/Memory_size', len(self.memory), step=episode)
             tf.summary.scalar('Episode/Win_rate', 1.0 if win else 0.0, step=episode)
             
             # moyenne des récompenses et pertes sur les 100 derniers épisodes
             if len(self.training_stats['rewards']) > 0:
-                # 100 épisodes
                 window_size = min(100, len(self.training_stats['rewards']))
                 
                 avg_reward_100 = np.mean(self.training_stats['rewards'][-window_size:])
                 avg_loss_100 = np.mean(self.training_stats['losses'][-window_size:]) if self.training_stats['losses'] else 0
                 
-                # nombre de wins / nombre d'épisodes 
                 wins_in_window = len([r for r in self.training_stats['rewards'][-window_size:] if r > 0])
                 win_rate_100 = wins_in_window / window_size
                 
