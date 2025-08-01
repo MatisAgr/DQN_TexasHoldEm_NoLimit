@@ -13,7 +13,7 @@ from config import config
 class DQNAgent:
     
     def __init__(self, state_size: int, num_actions: int, learning_rate: float = None,
-                 temperature_start: float = None, temperature_min: float = None, temperature_decay: float = None,
+                 epsilon: float = None, epsilon_min: float = None, epsilon_decay: float = None,
                  gamma: float = None, memory_size: int = None):
         
 
@@ -22,9 +22,9 @@ class DQNAgent:
         
         # paramettre de train
         self.learning_rate = learning_rate if learning_rate is not None else config.DQN.LEARNING_RATE
-        self.temperature = temperature_start if temperature_start is not None else config.DQN.TEMPERATURE_START
-        self.temperature_min = temperature_min if temperature_min is not None else config.DQN.TEMPERATURE_MIN
-        self.temperature_decay = temperature_decay if temperature_decay is not None else config.DQN.TEMPERATURE_DECAY
+        self.epsilon = epsilon if epsilon is not None else config.DQN.EPSILON_START
+        self.epsilon_min = epsilon_min if epsilon_min is not None else config.DQN.EPSILON_MIN
+        self.epsilon_decay = epsilon_decay if epsilon_decay is not None else config.DQN.EPSILON_DECAY
         self.gamma = gamma if gamma is not None else config.DQN.GAMMA
         self.batch_size = config.DQN.BATCH_SIZE
         
@@ -38,7 +38,7 @@ class DQNAgent:
             'rewards': [],
             'episode_lengths': [],
             'q_values': [],
-            'temperature_history': []
+            'epsilon_history': []
         }
         
         # TensorBoard writer personnalisé
@@ -121,29 +121,24 @@ class DQNAgent:
     def get_legal_actions(self) -> List[int]:
         return list(range(self.num_actions))
     
-    # choisit une action
-    def act(self, state: np.ndarray, training: bool = True, temperature: float = 1.0) -> int:
-        # tableau des valeurs estimées de chaque action
-        q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
-        
-        if training and temperature > 0:
-            # softmax avec temperature pour l'exploration
-            exp_q = np.exp(q_values / temperature)
-            probabilities = exp_q / np.sum(exp_q)
-            return np.random.choice(len(q_values), p=probabilities)
+    # choisit une action selon epsilon-greedy
+    def act(self, state: np.ndarray, training: bool = True) -> int:
+        if training and np.random.random() < self.epsilon:
+            # EXPLORATION : action aléatoire
+            return np.random.choice(self.get_legal_actions())
         else:
-            # choix deterministe
+            # EXPLOITATION : meilleure action selon les Q-values
+            q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
             return np.argmax(q_values)
 
-    # reduit la temperature pour moins explorer
-    def update_temperature(self, decay_rate: float = None) -> None:
-        decay = decay_rate if decay_rate is not None else self.temperature_decay
-        self.temperature = max(self.temperature_min, self.temperature * decay)
+    # mettre à jour l'epsilon pour la politique epsilon-greedy
+    def update_epsilon(self) -> None:
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay) # reduction exponentielle de l'epsilon 
         
-        # enregistrer l'historique de temperature
-        self.training_stats['temperature_history'].append(self.temperature)
-        if len(self.training_stats['temperature_history']) > 1000:
-            self.training_stats['temperature_history'].pop(0)
+        # Enregistrer l'historique d'epsilon
+        self.training_stats['epsilon_history'].append(self.epsilon)
+        if len(self.training_stats['epsilon_history']) > 1000:
+            self.training_stats['epsilon_history'].pop(0)
     
     # retourne les Q-values pour un etat donné
     def get_q_values(self, state: np.ndarray) -> np.ndarray:
@@ -199,7 +194,7 @@ class DQNAgent:
             
         return loss
     
-    # Met à jour l'epsilon
+    # Met à jour l'epsilon pour la politique epsilon-greedy
     def update_epsilon(self) -> None:
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay) # reduction exponentielle de l'epsilon 
         
@@ -266,7 +261,7 @@ class DQNAgent:
             tf.summary.scalar('Episode/Reward', episode_reward, step=episode)
             tf.summary.scalar('Episode/Loss', episode_loss, step=episode)
             tf.summary.scalar('Episode/Length', episode_length, step=episode)
-            tf.summary.scalar('Episode/Temperature', self.temperature, step=episode)
+            tf.summary.scalar('Episode/Epsilon', self.epsilon, step=episode)
             tf.summary.scalar('Episode/Memory_size', len(self.memory), step=episode)
             tf.summary.scalar('Episode/Win_rate', 1.0 if win else 0.0, step=episode)
             
@@ -287,11 +282,6 @@ class DQNAgent:
                 tf.summary.scalar('Moving_average_100/Win_rate', win_rate_100, step=episode)
 
             self.tensorboard_writer.flush()
-    
-    # ferme le writer TensorBoard
-    def close_tensorboard(self) -> None:
-        if hasattr(self, 'tensorboard_writer'):
-            self.tensorboard_writer.close()
 
     # met à jour le modele cible avec les poids du modele principal
     def update_target_model(self) -> None:

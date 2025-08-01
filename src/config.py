@@ -12,10 +12,6 @@ class DQNConfig:
     EPSILON_DECAY = 0.9995  # taux de décroissance de l'exploration
     GAMMA = 0.95            # facteur d'actualisation (importance des récompenses futures (long terme))
     
-    TEMPERATURE_START = 2.0   # température initiale pour l'exploration softmax
-    TEMPERATURE_MIN = 0.1     # température minimum pour l'exploration softmax
-    TEMPERATURE_DECAY = 0.995 # taux de décroissance de la température
-    
     # mémoire
     MEMORY_SIZE = 100000
     BATCH_SIZE = 32

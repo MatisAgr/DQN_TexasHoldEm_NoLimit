@@ -29,7 +29,7 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
     reward_history = []
     win_history = []
     loss_history = []
-    temperature_history = []  # nouvelle metrique pour suivre la temperature
+    epsilon_history = []  # nouvelle metrique pour suivre l'epsilon
     step_count = 0
     
     # affichage initial pour suivre le progres
@@ -56,8 +56,8 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
             time.sleep(1)
         
         while True:
-            # l'agent choisit une action avec exploration softmax basee sur la temperature
-            action = agent.act(state, training=True, temperature=agent.temperature)
+            # l'agent choisit une action avec exploration epsilon-greedy
+            action = agent.act(state, training=True)
             
             # on garde les q-values pour les stats
             q_values = agent.get_q_values(state)
@@ -91,8 +91,8 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
                     time.sleep(2)
                 break
         
-        # mise a jour de la temperature (remplace epsilon)
-        agent.update_temperature()
+        # mise a jour de l'epsilon
+        agent.update_epsilon()
         
         # mise a jour du target network
         if episode % target_update_frequency == 0:
@@ -111,9 +111,9 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
         reward_history.append(total_reward)
         win_history.append(1 if total_reward > 0 else 0)
         loss_history.append(avg_episode_loss)
-        temperature_history.append(agent.temperature)  # suivre l'evolution de la temperature
+        epsilon_history.append(agent.epsilon)  # suivre l'evolution de l'epsilon
         
-        # affichage des statistiques en temps reel avec temperature au lieu d'epsilon
+        # affichage en temps reel avec epsilon
         if episode % 10 == 0 or episode < 10:  # afficher plus souvent au debut
             recent_wins = sum(win_history[-50:]) if len(win_history) >= 50 else sum(win_history)
             recent_episodes = min(50, len(win_history))
@@ -122,57 +122,26 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
             avg_reward_recent = np.mean(reward_history[-50:]) if len(reward_history) >= 50 else np.mean(reward_history)
             avg_loss_recent = np.mean(loss_history[-50:]) if len(loss_history) >= 50 else np.mean(loss_history)
             
-            print(f"\n\n\t\t\t----- episode: {episode:4d} | reward: {total_reward:8.1f} | temperature: {agent.temperature:.4f} -----")
+            print(f"\n\n\t\t\t----- episode: {episode:4d} | reward: {total_reward:8.1f} | epsilon: {agent.epsilon:.4f} -----")
             print(f"\t\t\t----- win rate (50): {win_rate:5.1f}% | avg reward: {avg_reward_recent:6.1f} | avg loss: {avg_loss_recent:.4f} -----")
             print(f"\t\t\t----- memory: {agent.get_memory_size():5d} | steps: {steps_in_episode:3d} | q-avg: {avg_q_value:.2f} -----\n\n")
         
-        # affichage des resultats periodique detaille
-        if episode % config.TRAINING.PROGRESS_EVERY == 0 and episode > 0:
-            agent.print_training_stats(episode, window=100)
-            recent_wins = sum(win_history[-100:]) if len(win_history) >= 100 else sum(win_history)
-            recent_episodes = min(100, len(win_history))
-            win_rate = recent_wins / recent_episodes * 100
-            avg_reward = np.mean(reward_history[-100:]) if len(reward_history) >= 100 else np.mean(reward_history)
-            avg_loss = np.mean(loss_history[-100:]) if len(loss_history) >= 100 else np.mean(loss_history)
-            
-            # affichage modifie pour montrer la temperature au lieu d'epsilon
-            print(f"\n{Fore.MAGENTA}=== progres episode {episode} ==={Style.RESET_ALL}")
-            print(f"{Fore.CYAN}temperature actuelle: {agent.temperature:.4f} | win rate (100): {win_rate:.1f}%{Style.RESET_ALL}")
-            print(f"{Fore.CYAN}avg reward (100): {avg_reward:.1f} | avg loss (100): {avg_loss:.4f}{Style.RESET_ALL}")
-            print(f"{Fore.CYAN}memoire utilisee: {agent.get_memory_size()} transitions{Style.RESET_ALL}")
-        
+                    
         # sauvegarde periodique
         if episode % config.TRAINING.SAVE_EVERY == 0 and episode > 0:
             save_path = config.PATHS.EPISODE_MODEL_TEMPLATE.format(episode)
             agent.save_model(save_path)
             print(f"{Fore.GREEN}modele sauvegarde a l'episode {episode}{Style.RESET_ALL}")
-    
-    # resultats finaux
-    final_win_rate = sum(win_history[-200:]) / min(200, len(win_history)) * 100
-    final_avg_reward = np.mean(reward_history[-200:])
-    final_avg_loss = np.mean(loss_history[-200:]) if loss_history else 0
-    final_temperature = agent.temperature
-    
-    print(f"\n{Fore.MAGENTA}=== resultats finaux ==={Style.RESET_ALL}")
-    print(f"{Fore.GREEN}episodes total: {episodes}{Style.RESET_ALL}")
-    print(f"{Fore.GREEN}win rate final (200 derniers): {final_win_rate:.1f}%{Style.RESET_ALL}")
-    print(f"{Fore.GREEN}reward moyen final: {final_avg_reward:.1f}{Style.RESET_ALL}")
-    print(f"{Fore.GREEN}loss moyenne finale: {final_avg_loss:.4f}{Style.RESET_ALL}")
-    print(f"{Fore.GREEN}temperature finale: {final_temperature:.4f}{Style.RESET_ALL}")
-    print(f"{Fore.GREEN}memoire finale: {agent.get_memory_size()} transitions{Style.RESET_ALL}")
-    
+        
     # sauvegarde finale
     agent.save_model(config.PATHS.FINAL_MODEL)
     print(f"{Fore.GREEN}modele final sauvegarde!{Style.RESET_ALL}")
     
     # fermer tensorboard
-    agent.close_tensorboard()
-    print(f"{Fore.CYAN}logs tensorboard sauvegardes dans: {agent.tensorboard_log_dir}{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}pour voir les logs tensorboard, executez: tensorboard --logdir={agent.tensorboard_log_dir}{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}tensorboard --logdir={agent.tensorboard_log_dir}{Style.RESET_ALL}")
 
 
 def main():
-    """fonction principale du programme"""
     print(f"{Fore.CYAN}{'='*60}")
     print(f"{Fore.YELLOW}DQN POKER")
     print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
@@ -195,17 +164,15 @@ def main():
     env = TreysPokerEnv()
         
     # creation de l'agent dqn avec les parametres de configuration
-    # note: on garde les anciens parametres epsilon dans config mais on les ignore
     agent = DQNAgent(
         state_size=env.state_size,
         num_actions=env.num_actions,
         learning_rate=config.DQN.LEARNING_RATE,
+        epsilon=config.DQN.EPSILON_START,
+        epsilon_min=config.DQN.EPSILON_MIN,
+        epsilon_decay=config.DQN.EPSILON_DECAY,
         gamma=config.DQN.GAMMA,
-        memory_size=config.DQN.MEMORY_SIZE,
-        # parametres specifiques pour softmax
-        temperature_start=2.0,  # temperature initiale haute pour plus d'exploration
-        temperature_min=0.1,    # temperature minimale
-        temperature_decay=0.995 # decay plus lent que epsilon
+        memory_size=config.DQN.MEMORY_SIZE
     )
     
     # affichage de l'architecture
