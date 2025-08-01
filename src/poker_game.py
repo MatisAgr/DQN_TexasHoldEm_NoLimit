@@ -11,10 +11,11 @@ from config import config
 # action possible
 class PokerAction(Enum):
     FOLD = 0
-    CALL = 1
-    RAISE_SMALL = 2     # petite mise (50 jetons)
-    RAISE_BIG = 3       # grosse mise (100 jetons)
-    ALL_IN = 4
+    CHECK = 1           # checker (ne rien miser si pas d'aggression)
+    CALL = 2            # suivre la mise de l'adversaire
+    RAISE_SMALL = 3     # petite relance (50 jetons)
+    RAISE_BIG = 4       # grosse relance (100 jetons)
+    ALL_IN = 5          # tapis
 
 # env de la game de poker
 class TreysPokerEnv:
@@ -46,12 +47,16 @@ class TreysPokerEnv:
             self.player_bet = config.POKER.SMALL_BLIND      # Small blind
             self.opponent_bet = config.POKER.BIG_BLIND      # Big blind
             self.player_position = "SB"
+            self.opponent_position = "BB"
+            self.current_turn = "player"  # SB joue en premier pre-flop
             self.player_chips -= config.POKER.SMALL_BLIND
             self.opponent_chips -= config.POKER.BIG_BLIND
         else:
             self.player_bet = config.POKER.BIG_BLIND        # Big blind
             self.opponent_bet = config.POKER.SMALL_BLIND    # Small blind
             self.player_position = "BB"
+            self.opponent_position = "SB"
+            self.current_turn = "opponent"  # SB (opponent) joue en premier pre-flop
             self.player_chips -= config.POKER.BIG_BLIND
             self.opponent_chips -= config.POKER.SMALL_BLIND
         
@@ -60,6 +65,7 @@ class TreysPokerEnv:
         self.last_action = None
         self.opponent_last_action = None
         self.hand_history = []
+        self.action_history = []  # Historique des actions pour l'affichage
         
         return self.get_state()
     
@@ -218,22 +224,22 @@ class TreysPokerEnv:
         
         # stratégie
         if strength_factor > 0.7:  # Main très forte
-            actions = [PokerAction.RAISE_BIG, PokerAction.RAISE_SMALL, PokerAction.ALL_IN, PokerAction.CALL]
-            weights = [0.4, 0.3, 0.2, 0.1]
+            actions = [PokerAction.RAISE_BIG, PokerAction.RAISE_SMALL, PokerAction.ALL_IN, PokerAction.CALL, PokerAction.CHECK]
+            weights = [0.3, 0.25, 0.15, 0.15, 0.15]
         elif strength_factor > 0.4:  # Main correcte
-            actions = [PokerAction.CALL, PokerAction.RAISE_SMALL, PokerAction.RAISE_BIG, PokerAction.FOLD]
-            weights = [0.4, 0.3, 0.2, 0.1]  # Moins de fold
+            actions = [PokerAction.CALL, PokerAction.RAISE_SMALL, PokerAction.CHECK, PokerAction.RAISE_BIG, PokerAction.FOLD]
+            weights = [0.3, 0.25, 0.2, 0.15, 0.1]
         elif strength_factor > 0.2:  # Main marginale
-            actions = [PokerAction.CALL, PokerAction.RAISE_SMALL, PokerAction.FOLD]
-            weights = [0.5, 0.3, 0.2]  # Beaucoup moins de fold
+            actions = [PokerAction.CHECK, PokerAction.CALL, PokerAction.RAISE_SMALL, PokerAction.FOLD]
+            weights = [0.4, 0.3, 0.2, 0.1]
         else:  # Main faible
             if random_factor < 0.3:  # 30% de bluff
                 actions = [PokerAction.RAISE_SMALL, PokerAction.RAISE_BIG]
                 weights = [0.7, 0.3]
                 return random.choices(actions, weights=weights)[0]
             else:
-                actions = [PokerAction.FOLD, PokerAction.CALL, PokerAction.RAISE_SMALL]
-                weights = [0.5, 0.3, 0.2]  # Encore moins de fold
+                actions = [PokerAction.CHECK, PokerAction.FOLD, PokerAction.CALL]
+                weights = [0.5, 0.3, 0.2]
         
         return random.choices(actions, weights=weights)[0]
     
@@ -246,11 +252,44 @@ class TreysPokerEnv:
         reward = 0
         self.last_action = action
         
+        # Enregistrer l'action du joueur dans l'historique
+        action_name = action.name
+        action_amount = 0
+        
+        # Calculer le montant de l'action pour l'historique
+        if action == PokerAction.CHECK:
+            action_amount = 0
+        elif action == PokerAction.CALL:
+            action_amount = max(0, self.opponent_bet - self.player_bet)
+        elif action == PokerAction.RAISE_SMALL:
+            action_amount = max(0, self.opponent_bet - self.player_bet) + config.POKER.SMALL_RAISE
+        elif action == PokerAction.RAISE_BIG:
+            action_amount = max(0, self.opponent_bet - self.player_bet) + config.POKER.BIG_RAISE
+        elif action == PokerAction.ALL_IN:
+            action_amount = self.player_chips
+        
+        # Ajouter à l'historique
+        self.action_history.append(("IA", action_name, action_amount))
+        
+        # Changer le tour après l'action
+        self.current_turn = "opponent"
+        
         # action du joueur
         if action == PokerAction.FOLD:
             self.done = True
             reward = -self.player_bet
             self.winner = "opponent"
+            
+        elif action == PokerAction.CHECK:
+            # CHECK: ne rien faire si les mises sont égales
+            # Si l'adversaire a misé plus, CHECK n'est pas valide, on traite comme un CALL
+            if self.opponent_bet > self.player_bet:
+                call_amount = self.opponent_bet - self.player_bet
+                if call_amount <= self.player_chips:
+                    self.player_chips -= call_amount
+                    self.player_bet += call_amount
+                    self.pot += call_amount
+            # Sinon CHECK: aucune action nécessaire
             
         elif action == PokerAction.CALL:
             # calculer le montant nécessaire pour égaliser
@@ -289,11 +328,28 @@ class TreysPokerEnv:
             opp_action = self.opponent_action()
             self.opponent_last_action = opp_action  # stocker l'action adverse pour l'affichage
             
+            # Enregistrer l'action de l'adversaire
+            opp_action_name = opp_action.name
+            opp_action_amount = 0
+            
             if opp_action == PokerAction.FOLD:
                 self.done = True
                 # Gain = pot total moins ce qu'on a investi
                 reward = self.pot - self.player_bet
                 self.winner = "player"
+                self.action_history.append(("Adversaire", opp_action_name, 0))
+                
+            elif opp_action == PokerAction.CHECK:
+                # CHECK: ne rien faire si les mises sont égales
+                # Si le joueur a misé plus, CHECK n'est pas valide, on traite comme un CALL
+                if self.player_bet > self.opponent_bet:
+                    call_amount = self.player_bet - self.opponent_bet
+                    if call_amount <= self.opponent_chips:
+                        self.opponent_chips -= call_amount
+                        self.opponent_bet += call_amount
+                        self.pot += call_amount
+                        opp_action_amount = call_amount
+                self.action_history.append(("Adversaire", opp_action_name, opp_action_amount))
                 
             elif opp_action == PokerAction.CALL:
                 # adversaire égalise notre mise
@@ -302,6 +358,8 @@ class TreysPokerEnv:
                     self.opponent_chips -= call_amount
                     self.opponent_bet += call_amount
                     self.pot += call_amount
+                    opp_action_amount = call_amount
+                self.action_history.append(("Adversaire", opp_action_name, opp_action_amount))
                     
             elif opp_action == PokerAction.RAISE_SMALL:
                 # adversaire relance
@@ -311,6 +369,8 @@ class TreysPokerEnv:
                     self.opponent_chips -= total_raise
                     self.opponent_bet += total_raise
                     self.pot += total_raise
+                    opp_action_amount = total_raise
+                self.action_history.append(("Adversaire", opp_action_name, opp_action_amount))
                     
             elif opp_action == PokerAction.RAISE_BIG:
                 # adversaire fait une grosse relance
@@ -320,6 +380,8 @@ class TreysPokerEnv:
                     self.opponent_chips -= total_raise
                     self.opponent_bet += total_raise
                     self.pot += total_raise
+                    opp_action_amount = total_raise
+                self.action_history.append(("Adversaire", opp_action_name, opp_action_amount))
                     
             elif opp_action == PokerAction.ALL_IN:
                 # adversaire fait tapis
@@ -327,6 +389,11 @@ class TreysPokerEnv:
                 self.opponent_bet += all_in_amount
                 self.pot += all_in_amount
                 self.opponent_chips = 0
+                self.action_history.append(("Adversaire", opp_action_name, all_in_amount))
+            
+            # Remettre le tour au joueur après l'action de l'adversaire
+            if not self.done:
+                self.current_turn = "player"
             
             # next betting round si pas de fold
             if not self.done and self.player_bet == self.opponent_bet:

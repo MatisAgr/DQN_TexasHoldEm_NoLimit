@@ -29,7 +29,7 @@ class TrainingConfig:
     TARGET_UPDATE_FREQUENCY = 50    # 
     
     # Affichage et sauvegarde
-    SHOW_GAME_EVERY = 2000              # afficher une partie tous les n épisodes (avec l'affichage stylé dans le terminal)
+    SHOW_GAME_EVERY = 1              # afficher une partie tous les n épisodes (avec l'affichage stylé dans le terminal)
     SAVE_EVERY = 2000                   # save tous les n épisodes
     PROGRESS_EVERY = 100                # résumé stats tous les n épisodes
     
@@ -53,7 +53,7 @@ class PokerConfig:
     BIG_RAISE = 100
     
     STATE_SIZE = 15 # vecteur d'état de l'environnement
-    NUM_ACTIONS = 5  # 0: FOLD, 1: CALL, 2: RAISE_SMALL, 3: RAISE_BIG, 4: ALL_IN
+    NUM_ACTIONS = 6  # 0: FOLD, 1: CHECK, 2: CALL, 3: RAISE_SMALL, 4: RAISE_BIG, 5: ALL_IN
 
 
 class PathConfig:

@@ -151,9 +151,7 @@ class PokerConsole:
                 print(f"\n{Fore.RED}Agent IA perd {env.player_bet} jetons {Style.RESET_ALL}")
             else:
                 print(f"\n{Fore.YELLOW}Personne ne gagne {Style.RESET_ALL}")
-                        
-        print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
-    
+                            
     def render_multi_agent_game(env, show_both_hands: bool = False) -> None:
         """Affiche l'état complet du jeu multi-agent"""
         PokerConsole.print_header(f"MULTI-AGENT POKER - {env.get_betting_round_name()}")
@@ -196,9 +194,7 @@ class PokerConsole:
             else:
                 print(f"\n{Fore.YELLOW}Personne ne gagne{Style.RESET_ALL}")
                         
-        print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
     
-    @staticmethod  
     def print_multi_agent_game_state(env) -> None:
         """Affiche l'état du jeu multi-agent"""
         print(f"\n{Fore.MAGENTA}┌─ ÉTAT MULTI-AGENT ────────────────────────────────────────────────────┐")
@@ -208,7 +204,6 @@ class PokerConsole:
         print(f"│ Position: {Fore.CYAN}{env.agent1_position}{Style.RESET_ALL}\t\t│\tPosition: {Fore.CYAN}{env.agent2_position}{Style.RESET_ALL}\t\t\t│")
         print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
     
-    @staticmethod
     def print_multi_agent_training_progress(episode: int, agent1_reward: float, agent2_reward: float,
                                           agent1_epsilon: float, agent2_epsilon: float,
                                           agent1_win_rate: float, agent2_win_rate: float,
