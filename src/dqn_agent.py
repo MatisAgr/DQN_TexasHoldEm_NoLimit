@@ -244,9 +244,9 @@ class DQNAgent:
         win_rate = len([r for r in recent_rewards if r > 0]) / len(recent_rewards) * 100 if recent_rewards else 0
         
         print(f"\n{'='*80}")
-        print(f"episode: {episode:4d} | temperature: {self.temperature:.4f} | memory: {len(self.memory):5d}")
-        print(f"reward (avg {window}): {avg_reward:8.2f} | win rate: {win_rate:5.1f}%")
-        print(f"loss (avg {window}):   {avg_loss:8.4f} | avg length: {avg_length:5.1f}")
+        print(f"Episode: {episode:4d}\t|\tEpsilon: {self.epsilon:.4f}\t|\tMemory: {len(self.memory):5d}")
+        print(f"Reward (avg {window}): {avg_reward:8.2f}\t|\tWin Rate: {win_rate:5.1f}%")
+        print(f"Loss (avg {window}): {avg_loss:8.4f}\t|\tAvg Length: {avg_length:5.1f}")
         print(f"{'='*80}")
     
     def log_to_tensorboard(self, episode: int, episode_reward: float, episode_loss: float, 
