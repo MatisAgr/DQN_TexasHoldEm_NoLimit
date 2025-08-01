@@ -10,7 +10,6 @@ import os
 import datetime
 from config import config
 
-
 class DQNAgent:
     
     def __init__(self, state_size: int, num_actions: int, learning_rate: float = None,
@@ -21,19 +20,19 @@ class DQNAgent:
         self.state_size = state_size
         self.num_actions = num_actions
         
-        # Paramètres d'apprentissage
+        # paramettre de train
         self.learning_rate = learning_rate if learning_rate is not None else config.DQN.LEARNING_RATE
-        self.temperature = temperature_start if temperature_start is not None else 2.0
-        self.temperature_min = temperature_min if temperature_min is not None else 0.1
-        self.temperature_decay = temperature_decay if temperature_decay is not None else 0.995
+        self.temperature = temperature_start if temperature_start is not None else config.DQN.TEMPERATURE_START
+        self.temperature_min = temperature_min if temperature_min is not None else config.DQN.TEMPERATURE_MIN
+        self.temperature_decay = temperature_decay if temperature_decay is not None else config.DQN.TEMPERATURE_DECAY
         self.gamma = gamma if gamma is not None else config.DQN.GAMMA
         self.batch_size = config.DQN.BATCH_SIZE
         
-        # Mémoire de replay
+        # mémoire
         memory_size = memory_size if memory_size is not None else config.DQN.MEMORY_SIZE
         self.memory = deque(maxlen=memory_size)
         
-        # Statistiques d'entraînement
+        # regrouper les stats de train
         self.training_stats = {
             'losses': [],
             'rewards': [],
@@ -43,32 +42,31 @@ class DQNAgent:
         }
         
         # TensorBoard writer personnalisé
-        import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.tensorboard_log_dir = os.path.join(config.PATHS.TENSORBOARD_LOG_DIR, f"dqn_training_{timestamp}")
         self.tensorboard_writer = tf.summary.create_file_writer(self.tensorboard_log_dir)
         
         # copie des poids
-        self.q_model = self._create_model()
-        self.target_model = self._create_model()
+        self.q_model = self.create_model()
+        self.target_model = self.create_model()
         self.target_model.set_weights(self.q_model.get_weights())
     
     # creation du modele
-    def _create_model(self) -> tf.keras.Model:
+    def create_model(self) -> tf.keras.Model:
         model = tf.keras.Sequential()
         
-        # Couche d'entrée
+        # couche de input
         model.add(layers.Dense(config.DQN.HIDDEN_LAYERS[0], activation='relu', input_shape=(self.state_size,)))
         model.add(layers.Dropout(config.DQN.DROPOUT_RATE))
         
-        # Couches cachées selon la configuration
+        # couche cachée
         for i, layer_size in enumerate(config.DQN.HIDDEN_LAYERS[1:], 1):
             model.add(layers.Dense(layer_size, activation='relu'))
             # Moins de dropout dans les dernières couches
             dropout_rate = config.DQN.DROPOUT_RATE * (0.7 if i >= len(config.DQN.HIDDEN_LAYERS) - 1 else 1.0)
             model.add(layers.Dropout(dropout_rate))
-        
-        # Couche de sortie
+
+        # couche de sortie
         model.add(layers.Dense(self.num_actions, activation='linear'))
         
         model.compile(
@@ -79,37 +77,39 @@ class DQNAgent:
     
     # callbacks
     def get_callbacks(self, episode: int = 0) -> List[tf.keras.callbacks.Callback]:
-        # Créer un dossier unique pour cette session d'entrainement
-        import datetime
+        # un dossier par session de train
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_log_dir = os.path.join(config.PATHS.TENSORBOARD_LOG_DIR, f"training_{timestamp}")
         
         return [
-            # TensorBoard pour voir les courbes d'entrainement
+            # TensorBoard pour le monitoring
             tf.keras.callbacks.TensorBoard(
                 log_dir=tensorboard_log_dir,
-                histogram_freq=0,  # Pas d'histogrammes pour éviter les problèmes
-                write_graph=False,  # Pas de graphe pour éviter les problèmes
-                write_images=False,  # Pas d'images pour éviter les problèmes
-                update_freq='epoch',  # Mise à jour par époque plutôt que par batch
-                profile_batch=0  # Pas de profiling pour éviter les problèmes
+                update_freq='epoch'  # maj par epoch
             ),
-            # Sauvegarde le meilleur modele
+            # sauvegarde le meilleur modele tpis mes 
             tf.keras.callbacks.ModelCheckpoint(
                 filepath=config.PATHS.FINAL_MODEL,
                 monitor='loss',
                 save_best_only=True,
                 save_weights_only=True,
-                verbose=0  # Pas de messages de sauvegarde
+                verbose=0
             ),
-            # Reduit le learning rate si pas d'amelioration
+            # reduit le learning rate si pas d'amelioration
             tf.keras.callbacks.ReduceLROnPlateau(
                 monitor='loss',
                 factor=0.5,
                 patience=20,
                 min_lr=1e-7,
-                verbose=0  # Pas de messages
-            )
+                verbose=0
+            ),
+            # early stop si pas d'amelioration
+            tf.keras.callbacks.EarlyStopping(
+                monitor='loss',
+                patience=10,  # 10 derniere epochs sans amelioration
+                restore_best_weights=True,
+                verbose=0
+            ),
         ]
     
     # stocke une transition dans la memoire de replay
