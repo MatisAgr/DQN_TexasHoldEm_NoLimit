@@ -129,10 +129,10 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
             
             episodes_per_sec = 10 / episode_time if episode_time > 0 else 0
             
-            print(f"\n\n\t\t\t----- episode: {episode:4d} | reward: {total_reward:8.1f} | epsilon: {agent.epsilon:.4f} -----")
-            print(f"\t\t\t----- win rate (50): {win_rate:5.1f}% | avg reward: {avg_reward_recent:6.1f} | avg loss: {avg_loss_recent:.4f} -----")
-            print(f"\t\t\t----- memory: {agent.get_memory_size():5d} | steps: {steps_in_episode:3d} | q-avg: {avg_q_value:.2f} -----")
-            print(f"\t\t\t----- temps: {episode_time:.2f}s (10 ep) | vitesse: {episodes_per_sec:.1f} ep/s -----\n\n")
+            # print(f"\n\n\t\t\t----- episode: {episode:4d} | reward: {total_reward:8.1f} | epsilon: {agent.epsilon:.4f} -----")
+            # print(f"\t\t\t----- win rate (50): {win_rate:5.1f}% | avg reward: {avg_reward_recent:6.1f} | avg loss: {avg_loss_recent:.4f} -----")
+            # print(f"\t\t\t----- memory: {agent.get_memory_size():5d} | steps: {steps_in_episode:3d} | q-avg: {avg_q_value:.2f} -----")
+            # print(f"\t\t\t----- temps: {episode_time:.2f}s (10 ep) | vitesse: {episodes_per_sec:.1f} ep/s -----\n\n")
             
             episode_start_time = time.time()  # Reset timer
         

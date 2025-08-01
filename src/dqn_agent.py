@@ -50,6 +50,11 @@ class DQNAgent:
         self.q_model = self.create_model()
         self.target_model = self.create_model()
         self.target_model.set_weights(self.q_model.get_weights())
+        
+        # Créer les callbacks une seule fois pour éviter les problèmes de performance
+        self.callbacks = self.get_callbacks()
+    
+    #-------------------------------------------------------
     
     # creation du modele
     def create_model(self) -> tf.keras.Model:
@@ -83,6 +88,7 @@ class DQNAgent:
         
         return [
             # TensorBoard pour le monitoring
+            # On a déjà un system de log perso, mais cela créé le dossier train
             tf.keras.callbacks.TensorBoard(
                 log_dir=tensorboard_log_dir,
                 update_freq='epoch'  # maj par epoch
@@ -111,6 +117,8 @@ class DQNAgent:
                 verbose=0
             ),
         ]
+    
+    #-------------------------------------------------------
     
     # stocke une transition dans la memoire de replay
     def store_transition(self, state: np.ndarray, action: int, reward: float, 
@@ -143,6 +151,8 @@ class DQNAgent:
     # retourne les Q-values pour un etat donné
     def get_q_values(self, state: np.ndarray) -> np.ndarray:
         return self.q_model.predict(state[np.newaxis], verbose=0)[0]
+    
+    #-------------------------------------------------------
     
     # echantillonne un batch de transitions de la mémoire
     def sample_batch(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -178,8 +188,7 @@ class DQNAgent:
                 # episode continue : q-value = reward + valeur future escomptee
                 target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] # Q(s, a) = r + gamma * max_a' Q(s', a')
         
-        callbacks = self.get_callbacks()
-        history = self.q_model.fit(states, target_q_values, verbose=1, epochs=1, callbacks=callbacks)
+        history = self.q_model.fit(states, target_q_values, verbose=1, epochs=1, callbacks=self.callbacks)
         
         loss = history.history['loss'][0]
         
@@ -189,15 +198,6 @@ class DQNAgent:
             self.training_stats['losses'].pop(0) # garder la mémoire légère
             
         return loss
-    
-    # Met à jour l'epsilon pour la politique epsilon-greedy
-    def update_epsilon(self) -> None:
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay) # reduction exponentielle de l'epsilon 
-        
-        # Enregistrer l'historique d'epsilon
-        self.training_stats['epsilon_history'].append(self.epsilon)
-        if len(self.training_stats['epsilon_history']) > 1000:
-            self.training_stats['epsilon_history'].pop(0)
     
     # enregistre les statistiques d'un épisode
     # episode_reward: récompense totale de l'épisode
@@ -216,6 +216,8 @@ class DQNAgent:
             for key in ['rewards', 'episode_lengths', 'q_values']:
                 if len(self.training_stats[key]) > 1000:
                     self.training_stats[key].pop(0)
+    
+    #-------------------------------------------------------
     
     # retourne les statistiques d'entrainement
     def get_training_stats(self) -> dict:
@@ -240,6 +242,8 @@ class DQNAgent:
         print(f"Reward (avg {window}): {avg_reward:8.2f}\t|\tWin Rate: {win_rate:5.1f}%")
         print(f"Loss (avg {window}): {avg_loss:8.4f}\t|\tAvg Length: {avg_length:5.1f}")
         print(f"{'='*80}")
+    
+    #-------------------------------------------------------
     
     # enregistre les metriques dans tensorboard avec temperature au lieu d'epsilon
     def log_to_tensorboard(self, episode: int, episode_reward: float, episode_loss: float, 
@@ -282,6 +286,8 @@ class DQNAgent:
 
             self.tensorboard_writer.flush()
 
+    #-------------------------------------------------------
+
     # met à jour le modele cible avec les poids du modele principal
     def update_target_model(self) -> None:
         self.target_model.set_weights(self.q_model.get_weights())
@@ -300,6 +306,8 @@ class DQNAgent:
         else:
             print(f"fichier {filepath} non trouvé, utilisation d'un modele neuf")
     
+    #-------------------------------------------------------
+    
     # affiche l'architecture du modele DQN
     def get_model_summary(self) -> None:
         print("\nArchitecture du modele DQN:")
@@ -308,3 +316,4 @@ class DQNAgent:
     # retourne la taille de la mémoire de replay
     def get_memory_size(self) -> int:
         return len(self.memory)
+

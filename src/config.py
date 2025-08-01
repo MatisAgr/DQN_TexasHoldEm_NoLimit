@@ -44,7 +44,7 @@ class TrainingConfig:
 # env poker
 class PokerConfig:
     
-    INITIAL_CHIPS = 1000
+    INITIAL_CHIPS = 500
     SMALL_BLIND = 10
     BIG_BLIND = 20
     
