@@ -34,8 +34,8 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
     
     # affichage initial pour suivre le progres
     PokerConsole.clear_screen()
-    PokerConsole.print_header("entrainement dqn poker avec treys - exploration softmax")
-    print(f"{Fore.YELLOW}entrainement de l'agent dqn pour {episodes} episodes avec exploration par temperature...{Style.RESET_ALL}")
+    PokerConsole.print_header("Train dqn poker")
+    print(f"{Fore.YELLOW}Train pendant {episodes}...{Style.RESET_ALL}")
 
     
     for episode in range(episodes):
@@ -174,7 +174,7 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
 def main():
     """fonction principale du programme"""
     print(f"{Fore.CYAN}{'='*60}")
-    print(f"{Fore.YELLOW}dqn poker avec exploration softmax")
+    print(f"{Fore.YELLOW}DQN POKER")
     print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
     
     # TODO: choix du mode d'entrainement
@@ -210,7 +210,6 @@ def main():
     
     # affichage de l'architecture
     agent.get_model_summary()
-    print(f"{Fore.YELLOW}exploration par softmax avec temperature initiale: {agent.temperature:.2f}{Style.RESET_ALL}")
         
     # entrainement seulement
     train_agent(env=env, agent=agent)
