@@ -11,7 +11,6 @@ init(autoreset=True) # reset de la couleur après chaque print
 
 
 class PokerConsole:
-    """console pour afficher le jeu"""
     
     def clear_screen() -> None:
         """Efface l'écran de la console"""
