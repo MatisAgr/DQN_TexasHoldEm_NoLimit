@@ -121,9 +121,9 @@ class DQNAgent:
     def get_legal_actions(self) -> List[int]:
         return list(range(self.num_actions))
     
-    # choisit une action selon e-greedy
+    # choisit une action
     def act(self, state: np.ndarray, training: bool = True, temperature: float = 1.0) -> int:
-        """choisit une action avec softmax au lieu d'epsilon-greedy"""
+        # tableau des valeurs estimées de chaque action
         q_values = self.q_model.predict(state[np.newaxis], verbose=0)[0]
         
         if training and temperature > 0:
@@ -135,9 +135,8 @@ class DQNAgent:
             # choix deterministe
             return np.argmax(q_values)
 
-
+    # reduit la temperature pour moins explorer
     def update_temperature(self, decay_rate: float = None) -> None:
-        """reduit la temperature pour moins explorer"""
         decay = decay_rate if decay_rate is not None else self.temperature_decay
         self.temperature = max(self.temperature_min, self.temperature * decay)
         
@@ -153,29 +152,35 @@ class DQNAgent:
     # echantillonne un batch de transitions de la mémoire
     def sample_batch(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         batch = random.sample(self.memory, batch_size)
-        states, actions, rewards, next_states, dones = map(np.array, zip(*batch))
+        states, actions, rewards, next_states, dones = map(np.array, zip(*batch)) # decomposition des transitions
         return states, actions, rewards, next_states, dones
     
     # effectue un pas d'entraînement du modele DQN
     def train_step(self, batch_size: int = None, use_callbacks: bool = True) -> Optional[float]:
+        # utilise la taille de batch par defaut si aucune n'est specifiee
         if batch_size is None:
             batch_size = self.batch_size
-            
+        
+        # pas assez d'experiences en memoire pour faire un batch complet
         if len(self.memory) < batch_size:
             return None
         
         states, actions, rewards, next_states, dones = self.sample_batch(batch_size)
         
         # Calcul des Q-values cibles
+        # predit les q-values pour tous les etats suivants avec le reseau cible
         next_q_values = self.target_model.predict(next_states, verbose=0)
         max_next_q_values = np.max(next_q_values, axis=1) # Q(s', a') pour les états suivants
         
         target_q_values = self.q_model.predict(states, verbose=0) # Q(s, a) pour les etats actuels
         
+        # met a jour seulement les q-values des actions qui ont ete prises
         for i in range(batch_size):
             if dones[i]:
+                # episode termine : q-value = reward seulement (pas de futur)
                 target_q_values[i][actions[i]] = rewards[i] # Q(s, a) = r si l'etat suivant est terminal
             else:
+                # episode continue : q-value = reward + valeur future escomptee
                 target_q_values[i][actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] # Q(s, a) = r + gamma * max_a' Q(s', a')
         
         # Entraîner le modèle avec ou sans callbacks
@@ -194,7 +199,7 @@ class DQNAgent:
             
         return loss
     
-    # Met à jour l'epsilon pour la politique e-greedy
+    # Met à jour l'epsilon
     def update_epsilon(self) -> None:
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay) # reduction exponentielle de l'epsilon 
         
@@ -206,14 +211,6 @@ class DQNAgent:
     # enregistre les statistiques d'un épisode
     # episode_reward: récompense totale de l'épisode, episode_length: longueur de l'épisode, avg_q_value: q-value moyenne de l'épisode
     def record_episode_stats(self, episode_reward: float, episode_length: int, avg_q_value: float = None) -> None:
-        """
-        Enregistre les statistiques d'un épisode
-        
-        Args:
-            episode_reward: Récompense totale de l'épisode
-            episode_length: Nombre de steps dans l'épisode
-            avg_q_value: Q-value moyenne de l'épisode (optionnel)
-        """
         self.training_stats['rewards'].append(episode_reward)
         self.training_stats['episode_lengths'].append(episode_length)
         
@@ -249,11 +246,9 @@ class DQNAgent:
         print(f"Loss (avg {window}): {avg_loss:8.4f}\t|\tAvg Length: {avg_length:5.1f}")
         print(f"{'='*80}")
     
+    # enregistre les metriques dans tensorboard avec temperature au lieu d'epsilon
     def log_to_tensorboard(self, episode: int, episode_reward: float, episode_loss: float, 
                           episode_length: int, win: bool = False) -> None:
-        """
-        enregistre les metriques dans tensorboard avec temperature au lieu d'epsilon
-        """
         with self.tensorboard_writer.as_default():
             tf.summary.scalar('episode/reward', episode_reward, step=episode)
             tf.summary.scalar('episode/loss', episode_loss, step=episode)
@@ -274,35 +269,34 @@ class DQNAgent:
             
             self.tensorboard_writer.flush()
     
+    # ferme le writer TensorBoard
     def close_tensorboard(self) -> None:
-        """Ferme le writer TensorBoard"""
         if hasattr(self, 'tensorboard_writer'):
             self.tensorboard_writer.close()
-    
+
+    # met à jour le modele cible avec les poids du modele principal
     def update_target_model(self) -> None:
-        """Met à jour le modèle cible avec les poids du modèle principal"""
         self.target_model.set_weights(self.q_model.get_weights())
     
+    # sauvegarde et charge le modele
     def save_model(self, filepath: str) -> None:
-        """Sauvegarde les poids du modèle"""
-        # Créer le répertoire s'il n'existe pas
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         self.q_model.save_weights(filepath)
     
+    # charge les poids du modele depuis un fichier
     def load_model(self, filepath: str) -> None:
-        """Charge les poids du modèle"""
         if os.path.exists(filepath):
             self.q_model.load_weights(filepath)
             self.target_model.set_weights(self.q_model.get_weights())
-            print(f"Modèle chargé depuis {filepath}")
+            print(f"modele chargé depuis {filepath}")
         else:
-            print(f"Fichier {filepath} non trouvé, utilisation d'un modèle neuf")
+            print(f"fichier {filepath} non trouvé, utilisation d'un modele neuf")
     
+    # affiche l'architecture du modele DQN
     def get_model_summary(self) -> None:
-        """Affiche l'architecture du reseau de neurones"""
         print("\nArchitecture du modele DQN:")
         self.q_model.summary()
     
+    # retourne la taille de la mémoire de replay
     def get_memory_size(self) -> int:
-        """Retourne la taille actuelle de la mémoire de replay"""
         return len(self.memory)
