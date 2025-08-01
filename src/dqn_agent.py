@@ -268,9 +268,12 @@ class DQNAgent:
             # moyenne des récompenses et pertes sur les 100 derniers épisodes
             if len(self.training_stats['rewards']) > 0:
                 # 100 épisodes
-                window_size = min(100, len(self.training_stats['rewards']))
+                window_size = 100
                 
+                # avg_reward_100 = moyenne des récompenses sur les 100 derniers épisodes
                 avg_reward_100 = np.mean(self.training_stats['rewards'][-window_size:])
+                
+                # avg_loss_100 = moyenne des pertes sur les 100 derniers épisodes
                 avg_loss_100 = np.mean(self.training_stats['losses'][-window_size:]) if self.training_stats['losses'] else 0
                 
                 # nombre de wins / nombre d'épisodes 

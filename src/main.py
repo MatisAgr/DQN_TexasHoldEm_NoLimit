@@ -36,6 +36,10 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
     PokerConsole.clear_screen()
     PokerConsole.print_header("Train dqn poker")
     print(f"{Fore.YELLOW}Train pendant {episodes}...{Style.RESET_ALL}")
+    
+    # Timer pour mesurer le temps d'entraînement
+    start_time = time.time()
+    episode_start_time = time.time()
 
     
     for episode in range(episodes):
@@ -115,6 +119,7 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
         
         # affichage en temps reel avec epsilon
         if episode % 10 == 0 or episode < 10:  # afficher plus souvent au debut
+            episode_time = time.time() - episode_start_time
             recent_wins = sum(win_history[-50:]) if len(win_history) >= 50 else sum(win_history)
             recent_episodes = min(50, len(win_history))
             win_rate = recent_wins / recent_episodes * 100 if recent_episodes > 0 else 0
@@ -122,9 +127,14 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
             avg_reward_recent = np.mean(reward_history[-50:]) if len(reward_history) >= 50 else np.mean(reward_history)
             avg_loss_recent = np.mean(loss_history[-50:]) if len(loss_history) >= 50 else np.mean(loss_history)
             
+            episodes_per_sec = 10 / episode_time if episode_time > 0 else 0
+            
             print(f"\n\n\t\t\t----- episode: {episode:4d} | reward: {total_reward:8.1f} | epsilon: {agent.epsilon:.4f} -----")
             print(f"\t\t\t----- win rate (50): {win_rate:5.1f}% | avg reward: {avg_reward_recent:6.1f} | avg loss: {avg_loss_recent:.4f} -----")
-            print(f"\t\t\t----- memory: {agent.get_memory_size():5d} | steps: {steps_in_episode:3d} | q-avg: {avg_q_value:.2f} -----\n\n")
+            print(f"\t\t\t----- memory: {agent.get_memory_size():5d} | steps: {steps_in_episode:3d} | q-avg: {avg_q_value:.2f} -----")
+            print(f"\t\t\t----- temps: {episode_time:.2f}s (10 ep) | vitesse: {episodes_per_sec:.1f} ep/s -----\n\n")
+            
+            episode_start_time = time.time()  # Reset timer
         
                     
         # sauvegarde periodique
@@ -136,6 +146,17 @@ def train_agent(env: TreysPokerEnv, agent: DQNAgent, episodes: int = config.TRAI
     # sauvegarde finale
     agent.save_model(config.PATHS.FINAL_MODEL)
     print(f"{Fore.GREEN}modele final sauvegarde!{Style.RESET_ALL}")
+    
+    # Temps total d'entraînement
+    total_time = time.time() - start_time
+    minutes = int(total_time // 60)
+    seconds = total_time % 60
+    avg_time_per_episode = total_time / episodes
+    
+    print(f"\n{Fore.CYAN}=== TEMPS D'ENTRAINEMENT ==={Style.RESET_ALL}")
+    print(f"{Fore.GREEN}Temps total: {minutes}m {seconds:.1f}s{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}Temps moyen par épisode: {avg_time_per_episode:.3f}s{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}Vitesse moyenne: {episodes/total_time:.1f} épisodes/seconde{Style.RESET_ALL}")
     
     # fermer tensorboard
     print(f"{Fore.YELLOW}tensorboard --logdir={agent.tensorboard_log_dir}{Style.RESET_ALL}")
