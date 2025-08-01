@@ -79,6 +79,39 @@ class TreysPokerEnv:
         rounds = ["Pre-flop", "Flop", "Turn", "River", "Showdown"]
         return rounds[min(self.betting_round, 4)]
     
+    # actions légales
+    def get_legal_actions(self) -> List[int]:
+        legal_actions = []
+        
+        # si l'IA n'a plus de jetons, elle ne peut plus agir (sauf si showdown)
+        if self.player_chips == 0:
+            return []  # aucune action possible si all-in
+        
+        # si bot n'a plus de jetons non plus, showdown
+        if self.opponent_chips == 0 and self.player_chips == 0:
+            return []  # Showdown automatique
+        
+        # actions normales disponibles
+        legal_actions.append(0)  # FOLD toujours possible
+        
+        if self.player_bet == self.opponent_bet:
+            legal_actions.append(1)  # CHECK possible si mises égales
+        
+        if self.opponent_bet > self.player_bet:
+            legal_actions.append(2)  # CALL possible si adversaire a misé plus
+        
+        # RAISE seulement si on a assez de jetons
+        if self.player_chips >= config.POKER.SMALL_RAISE:
+            legal_actions.append(3)  # RAISE_SMALL
+        
+        if self.player_chips >= config.POKER.BIG_RAISE:
+            legal_actions.append(4)  # RAISE_BIG
+        
+        if self.player_chips > 0:
+            legal_actions.append(5)  # ALL_IN toujours possible si on a des jetons
+        
+        return legal_actions
+    
     # la lib trey calcul la force de la main et donne un score
     def get_hand_strength(self, hole_cards: List[int], community_cards: Optional[List[int]] = None) -> float:
         
@@ -248,15 +281,20 @@ class TreysPokerEnv:
         if self.done:
             return self.get_state(), 0, True, {}
         
+        # si l'IA n'a plus de jetons, elle ne peut plus agir
+        if self.player_chips == 0:
+            # passer directement au showdown ou à la suite
+            return self.handle_all_in_situation()
+        
         action = PokerAction(action_idx)
         reward = 0
         self.last_action = action
         
-        # Enregistrer l'action du joueur dans l'historique
+        # enregistrer l'action du joueur dans l'historique
         action_name = action.name
         action_amount = 0
         
-        # Calculer le montant de l'action pour l'historique
+        # calculer le montant de l'action pour l'historique
         if action == PokerAction.CHECK:
             action_amount = 0
         elif action == PokerAction.CALL:
@@ -268,8 +306,9 @@ class TreysPokerEnv:
         elif action == PokerAction.ALL_IN:
             action_amount = self.player_chips
         
-        # Ajouter à l'historique
-        self.action_history.append(("IA", action_name, action_amount))
+        # ajouter à l'historique seulement si l'action a un montant > 0 ou n'est pas ALL_IN redondant
+        if action != PokerAction.ALL_IN or action_amount > 0:
+            self.action_history.append(("IA", action_name, action_amount))
         
         # Changer le tour après l'action
         self.current_turn = "opponent"
@@ -429,3 +468,116 @@ class TreysPokerEnv:
         strength = self.get_hand_strength(self.opponent_cards)
         hand_class = self.get_hand_class(self.opponent_cards)
         return strength, hand_class
+
+
+
+
+
+    # TODO: revoir le ALL_IN (loop / crash / move illégal de temps en temps)
+ 
+    # gérer la situation ALL_IN si ia plus de jetons
+    def handle_all_in_situation(self) -> Tuple[np.ndarray, float, bool, Dict]:
+        # si les deux joueurs sont ALL_IN, aller directement au showdown
+        if self.player_chips == 0 and self.opponent_chips == 0:
+            return self.proceed_to_showdown()
+        
+        # si seule l'IA est ALL_IN, l'adversaire doit répondre
+        if self.player_chips == 0 and self.opponent_chips > 0:
+            opp_action = self.opponent_action()
+            
+            # action de l'adversaire
+            if opp_action == PokerAction.FOLD:
+                self.done = True
+                reward = self.pot - self.player_bet
+                self.winner = "player"
+                return self.get_state(), reward, True, {"winner": self.winner}
+            
+            elif opp_action == PokerAction.CALL:
+                # adversaire égalise, les deux sont maintenant ALL_IN ou au showdown
+                call_amount = min(self.opponent_chips, self.player_bet - self.opponent_bet)
+                if call_amount > 0:
+                    self.opponent_chips -= call_amount
+                    self.opponent_bet += call_amount
+                    self.pot += call_amount
+                    self.action_history.append(("Adversaire", "CALL", call_amount))
+                
+                # showdown
+                return self.proceed_to_showdown()
+            
+            else:
+                # Autres actions (unlikely après ALL_IN mais pour sécurité)
+                return self.get_state(), 0, self.done, {}
+                
+        # Cas général: continuer le jeu normalement
+        return self.get_state(), 0, self.done, {}
+
+    # procéder au showdown si les deux joueurs sont ALL_IN ou si le round est terminé
+    def proceed_to_showdown(self) -> Tuple[np.ndarray, float, bool, Dict]:
+        # Révéler toutes les cartes communautaires restantes
+        while len(self.community_cards) < 5:
+            self.community_cards.append(self.deck.draw(1)[0])
+        
+        # Aller au showdown
+        winner, player_hand_strength, opponent_hand_strength = self.evaluate_hands()
+        reward = self.calculate_final_reward(winner)
+        self.done = True
+        
+        return self.get_state(), reward, True, {
+            'winner': winner,
+            'player_hand': player_hand_strength,
+            'opponent_hand': opponent_hand_strength
+        }
+
+    def evaluate_hands(self) -> Tuple[str, float, float]:
+        player_strength = self.get_hand_strength(self.player_cards)
+        opponent_strength = self.get_hand_strength(self.opponent_cards)
+        
+        if player_strength > opponent_strength:
+            return "player", player_strength, opponent_strength
+        elif player_strength < opponent_strength:
+            return "opponent", player_strength, opponent_strength
+        else:
+            return "tie", player_strength, opponent_strength
+
+    def calculate_final_reward(self, winner: str) -> float:
+        if winner == "player":
+            return self.pot - self.player_bet
+        elif winner == "opponent":
+            return -self.player_bet
+        else:  # égalité
+            return 0
+
+    def get_legal_actions(self) -> List[int]:
+        if self.player_chips == 0:
+            return []  # Aucune action possible si le joueur n'a plus de jetons
+        
+        legal_actions = []
+        
+        # CHECK: possible si pas de mise adversaire ou si on a déjà égalisé
+        if self.opponent_bet <= self.player_bet:
+            legal_actions.append(PokerAction.CHECK.value)
+        
+        # CALL: possible s'il y a une mise adversaire à égaliser
+        call_amount = max(0, self.opponent_bet - self.player_bet)
+        if call_amount > 0 and call_amount <= self.player_chips:
+            legal_actions.append(PokerAction.CALL.value)
+        
+        # RAISE_SMALL: possible si on a assez de jetons
+        raise_small_total = call_amount + config.POKER.SMALL_RAISE
+        if raise_small_total <= self.player_chips:
+            legal_actions.append(PokerAction.RAISE_SMALL.value)
+        
+        # RAISE_BIG: possible si on a assez de jetons  
+        raise_big_total = call_amount + config.POKER.BIG_RAISE
+        if raise_big_total <= self.player_chips:
+            legal_actions.append(PokerAction.RAISE_BIG.value)
+        
+        # ALL_IN: toujours possible si on a des jetons
+        if self.player_chips > 0:
+            legal_actions.append(PokerAction.ALL_IN.value)
+        
+        # FOLD: toujours possible (sauf si CHECK est possible)
+        if PokerAction.CHECK.value not in legal_actions:
+            legal_actions.append(PokerAction.FOLD.value)
+        
+        return legal_actions
