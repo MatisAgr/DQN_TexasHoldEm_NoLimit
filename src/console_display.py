@@ -18,9 +18,9 @@ class PokerConsole:
     
     def print_header(title: str) -> None:
         """entete trop stylé"""
-        print(f"\n{Fore.CYAN}{'=' * 80}")
-        print(f"{Fore.YELLOW}{title.center(80)}")
-        print(f"{Fore.CYAN}{'=' * 80}")
+        print(f"\n{Fore.CYAN}{'=' * 73}")
+        print(f"{Fore.YELLOW}{title.center(73)}")
+        print(f"{Fore.CYAN}{'=' * 73}")
     
     def print_cards(cards: List[int], label: str = "Cartes") -> None:
         """Affiche les cartes avec des couleurs appropriées"""
@@ -49,14 +49,14 @@ class PokerConsole:
         opponent_pos = getattr(env, 'opponent_position', 'BB')
         
         print(f"\n{Fore.MAGENTA}┌─ ÉTAT DE LA PARTIE ───────────────────────────────────────────────────┐")
-        print(f"│ Pot: {Fore.YELLOW}{env.pot:>6}{Style.RESET_ALL} jetons\t\t│\tRound: {Fore.CYAN}{env.get_betting_round_name():<12}{Style.RESET_ALL}\t│")
+        print(f"│ Pot: \t   {Fore.YELLOW}{env.pot:>6}{Style.RESET_ALL} jetons\t│\tRound: {Fore.CYAN}{env.get_betting_round_name():<12}{Style.RESET_ALL}\t\t│")
         
         # Affichage avec positions
         pos_color_player = Fore.YELLOW if player_pos == "BB" else Fore.CYAN
         pos_color_opponent = Fore.YELLOW if opponent_pos == "BB" else Fore.CYAN
         
         print(f"│ 🤖 IA ({pos_color_player}{player_pos}{Style.RESET_ALL}): {Fore.GREEN}{env.player_chips:>4}{Style.RESET_ALL} jetons\t│\t🎲 Adv ({pos_color_opponent}{opponent_pos}{Style.RESET_ALL}): {Fore.RED}{env.opponent_chips:>4}{Style.RESET_ALL} jetons\t│")
-        print(f"│ IA mise: {Fore.BLUE}{env.player_bet:>6}{Style.RESET_ALL} jetons\t│\tMise Adv: {Fore.BLUE}{env.opponent_bet:>6}{Style.RESET_ALL} jetons\t│")
+        print(f"│ IA mise: {Fore.BLUE}{env.player_bet:>6}{Style.RESET_ALL} jetons\t│\tMise Adv: {Fore.BLUE}{env.opponent_bet:>6}{Style.RESET_ALL} jetons\t\t│")
         print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
         
         # Afficher les dernières actions des joueurs
@@ -109,8 +109,8 @@ class PokerConsole:
     
     def print_player_turn(current_player: str) -> None:
         """Affiche clairement qui doit jouer"""
-        print(f"\n{Fore.YELLOW}{'🎯 ' + current_player + ' DOIT JOUER':^80}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}{'─' * 80}{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}{current_player + ' DOIT JOUER':^80}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}{'─' * 73}{Style.RESET_ALL}")
     
     def print_player_move(player: str, action: str, amount: int = 0) -> None:
         """Affiche l'action d'un joueur de manière plus visible"""
@@ -137,7 +137,7 @@ class PokerConsole:
         """Affiche les informations sur les blinds"""
         print(f"\n{Fore.MAGENTA}┌─ POSITIONS ET BLINDS ──────────────────────────────────────────────────┐")
         print(f"│ 🤖 IA: {Fore.CYAN}{player_position:<2}{Style.RESET_ALL} ({player_blind} jetons)  │  🎲 Adversaire: {Fore.CYAN}{opponent_position:<2}{Style.RESET_ALL} ({opponent_blind} jetons)  │")
-        print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
+        print(f"{Fore.MAGENTA}└─────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
     
     def print_last_actions(env: TreysPokerEnv) -> None:
         """Affiche les dernières actions des deux joueurs si disponibles"""
@@ -150,7 +150,7 @@ class PokerConsole:
         if not recent_actions:
             return
             
-        print(f"\n{Fore.GREEN}┌─ DERNIÈRES ACTIONS ────────────────────────────────────────────────────┐")
+        print(f"\n{Fore.GREEN}┌─ DERNIERES ACTIONS ───────────────────────────────────────────────────┐")
         
         for i, (player, action, amount) in enumerate(recent_actions):
             action_colors = {
@@ -166,7 +166,7 @@ class PokerConsole:
             
             # Marquer la plus récente
             is_most_recent = (i == len(recent_actions) - 1)
-            recent_indicator = f" {Fore.GREEN}← DERNIÈRE{Style.RESET_ALL}" if is_most_recent else ""
+            recent_indicator = f" {Fore.GREEN}← LAST{Style.RESET_ALL}" if is_most_recent else ""
             
             if amount > 0:
                 print(f"│ {player_icon} {player}: {color}{action} ({amount} jetons){Style.RESET_ALL}{recent_indicator}")
@@ -206,13 +206,13 @@ class PokerConsole:
         
         print(f"{Fore.CYAN}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
     
+    # encadré pour les joueurs
     def print_player_cards_box(player_name: str, cards: List[int], strength: float, rank_class: str, 
                                chips: int, bet: int, position: str) -> None:
-        """Affiche les informations d'un joueur dans un encadré séparé"""
         player_icon = "🤖" if "IA" in player_name else "🎲"
         position_color = Fore.YELLOW if position == "BB" else Fore.CYAN
         
-        print(f"\n{Fore.GREEN}┌─ {player_icon} {player_name.upper()} ──────────────────────────────────────────────────────┐")
+        print(f"\n{Fore.GREEN}┌─ {player_icon} {player_name.upper()} ───────────────────────────────────────────────────────┐")
         
         # Cartes
         cards_str = []
@@ -232,7 +232,7 @@ class PokerConsole:
         # Statistiques
         print(f"│ Position: {position_color}{position}{Style.RESET_ALL}  │  Jetons: {Fore.BLUE}{chips}{Style.RESET_ALL}  │  Mise: {Fore.YELLOW}{bet}{Style.RESET_ALL}")
         
-        print(f"{Fore.GREEN}└─────────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
     
     def print_hand_strength(strength: float, rank_class: str) -> None:
         """Affiche la force de la main avec des couleurs"""
@@ -285,6 +285,7 @@ class PokerConsole:
         else:
             print(f"\n{Fore.RED}Bof la performance là{Style.RESET_ALL}")
     
+    # état de la game actuelle
     def render_game(env: TreysPokerEnv, show_opponent_cards: bool = False) -> None:
         """Affiche l'état complet du jeu avec une interface améliorée"""
         PokerConsole.print_header(f"POKER DQN - {env.get_betting_round_name()}")
@@ -304,7 +305,7 @@ class PokerConsole:
         
         # Cartes communes
         if env.community_cards:
-            print(f"\n{Fore.YELLOW}┌─ 🃏 BOARD (CARTES COMMUNES) ────────────────────────────────────────────┐")
+            print(f"\n{Fore.YELLOW}┌─ 🃏 BOARD (CARTES COMMUNES) ──────────────────────────────────────────┐")
             cards_str = []
             for card in env.community_cards:
                 card_str = TreysCard.int_to_pretty_str(card)
@@ -313,7 +314,7 @@ class PokerConsole:
                 else:
                     cards_str.append(f"{Fore.WHITE}{card_str}{Style.RESET_ALL}")
             print(f"│ Cartes: {' '.join(cards_str)}")
-            print(f"{Fore.YELLOW}└─────────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
         
         # État du jeu avec historique
         PokerConsole.print_game_state(env)
@@ -364,7 +365,7 @@ class PokerConsole:
         
         # Tour actuel
         current_agent = config.TRAINING.AGENT_NAMES[env.current_player - 1]
-        print(f"{Fore.YELLOW}🎯 Tour de: {current_agent}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}-> Tour de: {current_agent}{Style.RESET_ALL}")
         
         # Résultat final
         if env.done:
