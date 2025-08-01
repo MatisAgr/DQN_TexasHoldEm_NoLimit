@@ -1,0 +1,8 @@
+tensorflow
+keras
+numpy
+treys
+colorama
+matplotlib
+seaborn
+pandas
