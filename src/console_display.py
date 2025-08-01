@@ -60,9 +60,36 @@ class PokerConsole:
         print(f"│ IA mise: {Fore.BLUE}{env.player_bet:>6}{Style.RESET_ALL} jetons\t│\tMise Adv: {Fore.BLUE}{env.opponent_bet:>6}{Style.RESET_ALL} jetons\t│")
         print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
         
-        # Afficher l'historique des actions si disponible
-        if hasattr(env, 'action_history') and env.action_history:
+        # Afficher les dernières actions des joueurs
+        PokerConsole.print_last_actions(env)
+        
+        # Afficher l'historique complet si demandé (optionnel)
+        if hasattr(env, 'show_full_history') and env.show_full_history:
             PokerConsole.print_complete_action_history(env.action_history)
+    
+    def print_player_action_live(player: str, action: str, amount: int = 0) -> None:
+        """Affiche l'action d'un joueur en temps réel avec un style distinct"""
+        action_colors = {
+            "FOLD": Fore.RED,
+            "CHECK": Fore.BLUE,
+            "CALL": Fore.YELLOW,
+            "RAISE_SMALL": Fore.CYAN,
+            "RAISE_BIG": Fore.MAGENTA,
+            "ALL_IN": Fore.RED + Style.BRIGHT
+        }
+        color = action_colors.get(action, Fore.WHITE)
+        player_icon = "🤖" if player == "IA" else "🎲"
+        
+        print(f"\n{Fore.WHITE}{'=' * 80}")
+        print(f"{Fore.YELLOW}➤ ACTION EN COURS{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}{'=' * 80}")
+        
+        if amount > 0:
+            print(f"\n{Fore.WHITE}   {player_icon} {player} joue: {color}{action} ({amount} jetons){Style.RESET_ALL}")
+        else:
+            print(f"\n{Fore.WHITE}   {player_icon} {player} joue: {color}{action}{Style.RESET_ALL}")
+        
+        print(f"{Fore.WHITE}{'=' * 80}{Style.RESET_ALL}\n")
     
     def print_action(player: str, action: PokerAction, amount: int = 0) -> None:
         """Affiche l'action d'un joueur avec des couleurs"""
@@ -113,6 +140,42 @@ class PokerConsole:
         print(f"│ 🤖 IA: {Fore.CYAN}{player_position:<2}{Style.RESET_ALL} ({player_blind} jetons)  │  🎲 Adversaire: {Fore.CYAN}{opponent_position:<2}{Style.RESET_ALL} ({opponent_blind} jetons)  │")
         print(f"{Fore.MAGENTA}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
     
+    def print_last_actions(env: TreysPokerEnv) -> None:
+        """Affiche les dernières actions des deux joueurs si disponibles"""
+        if not hasattr(env, 'action_history') or not env.action_history:
+            return
+        
+        # Prendre les 2 dernières actions (joueur et adversaire)
+        recent_actions = env.action_history[-2:] if len(env.action_history) >= 2 else env.action_history
+        
+        if not recent_actions:
+            return
+            
+        print(f"\n{Fore.GREEN}┌─ DERNIÈRES ACTIONS ────────────────────────────────────────────────────┐")
+        
+        for i, (player, action, amount) in enumerate(recent_actions):
+            action_colors = {
+                "FOLD": Fore.RED,
+                "CHECK": Fore.BLUE,
+                "CALL": Fore.YELLOW,
+                "RAISE_SMALL": Fore.CYAN,
+                "RAISE_BIG": Fore.MAGENTA,
+                "ALL_IN": Fore.RED + Style.BRIGHT
+            }
+            color = action_colors.get(action, Fore.WHITE)
+            player_icon = "🤖" if player == "IA" else "🎲"
+            
+            # Marquer la plus récente
+            is_most_recent = (i == len(recent_actions) - 1)
+            recent_indicator = f" {Fore.GREEN}← DERNIÈRE{Style.RESET_ALL}" if is_most_recent else ""
+            
+            if amount > 0:
+                print(f"│ {player_icon} {player}: {color}{action} ({amount} jetons){Style.RESET_ALL}{recent_indicator}")
+            else:
+                print(f"│ {player_icon} {player}: {color}{action}{Style.RESET_ALL}{recent_indicator}")
+        
+        print(f"{Fore.GREEN}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
+    
     def print_complete_action_history(action_history: List[tuple]) -> None:
         """Affiche l'historique complet des actions de la partie"""
         if not action_history:
@@ -133,10 +196,14 @@ class PokerConsole:
             color = action_colors.get(action, Fore.WHITE)
             player_icon = "🤖" if player == "IA" else "🎲"
             
+            # Marquer la dernière action comme "move actuel"
+            is_current_move = (i == len(action_history))
+            current_indicator = f" {Fore.GREEN}(move actuel){Style.RESET_ALL}" if is_current_move else ""
+            
             if amount > 0:
-                print(f"│ {i:2d}. {player_icon} {player}: {color}{action} ({amount} jetons){Style.RESET_ALL}")
+                print(f"│ {i:2d}. {player_icon} {player}: {color}{action} ({amount} jetons){Style.RESET_ALL}{current_indicator}")
             else:
-                print(f"│ {i:2d}. {player_icon} {player}: {color}{action}{Style.RESET_ALL}")
+                print(f"│ {i:2d}. {player_icon} {player}: {color}{action}{Style.RESET_ALL}{current_indicator}")
         
         print(f"{Fore.CYAN}└───────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
     
@@ -255,6 +322,11 @@ class PokerConsole:
         # Séparateur avant les résultats finaux
         if env.done:
             PokerConsole.print_game_state_separator()
+            
+            # Afficher l'historique complet à la fin de la partie
+            if hasattr(env, 'action_history') and env.action_history:
+                PokerConsole.print_complete_action_history(env.action_history)
+            
             if env.winner == "player":
                 print(f"\n{Fore.GREEN}🎉 VICTOIRE ! Agent IA gagne {env.pot - env.player_bet} jetons {Style.RESET_ALL}")
             elif env.winner == "opponent":
