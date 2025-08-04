@@ -49,6 +49,7 @@ DQN_TexasHoldEm_NoLimit/
 - **TensorBoard logging** avec moyennes mobiles sur 100 épisodes
 
 ### 3. **Interface console** (console_display.py)
+
 > ![NOTE]
 > Vu qu'il n'y a pas d'environement de poker sur gymnasium, alors nous avons créé notre propre environnement de poker avec la bibliothèque Treys.
 
